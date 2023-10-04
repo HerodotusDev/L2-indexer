@@ -6,6 +6,7 @@ use std::{
     thread,
     time::{self, Duration},
 };
+use tokio_postgres::NoTls;
 
 #[derive(EthEvent, Debug)]
 #[ethevent(abi = "OutputProposed(bytes32,uint256,uint256,uint256)")]
@@ -28,6 +29,7 @@ const POLL_PERIOD: Duration = time::Duration::from_secs(60);
 async fn main() -> Result<()> {
     dotenv().ok();
     let rpc_url: &str = &std::env::var("RPC_URL").expect("RPC_URL must be set.");
+    let db_url: &str = &std::env::var("DB_URL").expect("DB_URL must be set.");
     let provider = Provider::<Http>::try_from(rpc_url)?;
     let client = Arc::new(provider);
     let address: Address = OP_PROPOSER_ADDRESS.parse()?;
@@ -40,6 +42,16 @@ async fn main() -> Result<()> {
         .event("OutputProposed(bytes32,uint256,uint256,uint256)")
         .from_block(0)
         .to_block(new_block_num - 1);
+
+    // Establish a PostgreSQL connection
+    let (pg_client, connection) = tokio_postgres::connect(db_url, NoTls)
+        .await
+        .expect("Failed to connect to PostgreSQL");
+    tokio::spawn(async move {
+        if let Err(e) = connection.await {
+            eprintln!("PostgreSQL connection error: {}", e);
+        }
+    });
 
     loop {
         let logs = client.get_logs(&filter).await?;
@@ -57,6 +69,19 @@ async fn main() -> Result<()> {
             println!(
                 "output_root = {output_root}, l2OutputIndex = {l2_output_index}, l2BlockNumber = {l2_block_number}, l1Timestamp = {l1_timestamp}",
             );
+
+            // Insert the data into PostgreSQL
+            if let Err(err) = insert_into_postgres(
+                &pg_client,
+                output_root,
+                l2_output_index,
+                l2_block_number,
+                l1_timestamp,
+            )
+            .await
+            {
+                eprintln!("Error inserting data into PostgreSQL: {:?}", err);
+            }
         }
         thread::sleep(POLL_PERIOD);
 
@@ -66,4 +91,20 @@ async fn main() -> Result<()> {
             .from_block(from_block_num)
             .to_block(new_block_num - 1);
     }
+}
+
+async fn insert_into_postgres(
+    client: &tokio_postgres::Client,
+    output_root: Bytes,
+    l1_output_index: U256,
+    l2_block_number: U256,
+    l1_timestamp: U256,
+) -> Result<(), tokio_postgres::Error> {
+    client
+        .execute(
+            "INSERT INTO optimism (output_root, l1_output_index, l2_blocknumber, l1_timestamp) VALUES ($1, $2, $3, $4)",
+            &[&output_root.to_string(), &(l1_output_index.as_u64() as i32), &(l2_block_number.as_u64() as i32), &(l1_timestamp.as_u64() as i32)],
+        )
+        .await?;
+    Ok(())
 }
