@@ -53,6 +53,11 @@ async fn main() -> Result<()> {
         }
     });
 
+    // Create the table if it doesn't exist
+    if let Err(err) = create_table_if_not_exists(&pg_client).await {
+        eprintln!("Error creating table: {:?}", err);
+    }
+
     loop {
         let logs = client.get_logs(&filter).await?;
         println!(
@@ -91,6 +96,24 @@ async fn main() -> Result<()> {
             .from_block(from_block_num)
             .to_block(new_block_num - 1);
     }
+}
+
+async fn create_table_if_not_exists(
+    client: &tokio_postgres::Client,
+) -> Result<(), tokio_postgres::Error> {
+    client
+        .execute(
+            "CREATE TABLE IF NOT EXISTS optimism (
+                id              SERIAL PRIMARY KEY,
+                output_root     VARCHAR NOT NULL,
+                l1_output_index INTEGER NOT NULL,
+                l2_blocknumber  INTEGER NOT NULL,
+                l1_timestamp    INTEGER NOT NULL
+            )",
+            &[],
+        )
+        .await?;
+    Ok(())
 }
 
 async fn insert_into_postgres(
