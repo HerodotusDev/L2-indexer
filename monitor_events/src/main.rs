@@ -35,6 +35,7 @@ async fn main() -> Result<()> {
     let address: Address = OP_PROPOSER_ADDRESS.parse()?;
 
     let mut from_block_num = U64([0]);
+    // TODO: If db is full get latest blocknumber and put .from_block with this value ( kill process / see duplicate)
     let mut new_block_num = client.get_block_number().await? - BLOCK_DELAY;
 
     let mut filter = Filter::new()
@@ -66,22 +67,30 @@ async fn main() -> Result<()> {
         );
 
         for log in logs.iter() {
-            let output_root = Bytes::from(log.topics[1].as_bytes().to_vec());
+            let l2_output_root = Bytes::from(log.topics[1].as_bytes().to_vec());
             let l2_output_index = U256::from_big_endian(&log.topics[2].as_bytes());
             let l2_block_number = U256::from_big_endian(&log.topics[3].as_bytes());
             let l1_timestamp = U256::from_big_endian(&log.data[29..32]);
-
+            let l1_transaction_hash =
+                Bytes::from(log.transaction_hash.unwrap().as_bytes().to_vec());
+            let l1_block_number = log.block_number.unwrap();
+            let l1_transaction_index = log.transaction_index.unwrap();
+            let l1_block_hash = Bytes::from(log.block_hash.unwrap().as_bytes().to_vec());
             println!(
-                "output_root = {output_root}, l2OutputIndex = {l2_output_index}, l2BlockNumber = {l2_block_number}, l1Timestamp = {l1_timestamp}",
+                "output_root = {l2_output_root}, l2OutputIndex = {l2_output_index}, l2BlockNumber = {l2_block_number}, l1Blocknumber = {l1_block_number}, l1Timestamp = {l1_timestamp}, l1_transaction_hash={l1_transaction_hash}, l1_transaction_index={l1_transaction_index}, L1_block_hash={l1_block_hash}",
             );
 
             // Insert the data into PostgreSQL
             if let Err(err) = insert_into_postgres(
                 &pg_client,
-                output_root,
+                l2_output_root,
                 l2_output_index,
                 l2_block_number,
                 l1_timestamp,
+                l1_transaction_hash,
+                l1_block_number,
+                l1_transaction_index,
+                l1_block_hash,
             )
             .await
             {
@@ -93,7 +102,7 @@ async fn main() -> Result<()> {
         from_block_num = new_block_num;
         new_block_num = client.get_block_number().await? - BLOCK_DELAY;
         filter = filter
-            .from_block(from_block_num)
+            .from_block(from_block_num + 1)
             .to_block(new_block_num - 1);
     }
 }
@@ -105,10 +114,14 @@ async fn create_table_if_not_exists(
         .execute(
             "CREATE TABLE IF NOT EXISTS optimism (
                 id              SERIAL PRIMARY KEY,
-                output_root     VARCHAR NOT NULL,
-                l1_output_index INTEGER NOT NULL,
+                l2_output_root     VARCHAR NOT NULL,
+                l2_output_index INTEGER NOT NULL,
                 l2_blocknumber  INTEGER NOT NULL,
-                l1_timestamp    INTEGER NOT NULL
+                l1_timestamp    INTEGER NOT NULL,
+                l1_transaction_hash    VARCHAR NOT NULL,
+                l1_block_number    INTEGER NOT NULL,
+                l1_transaction_index    INTEGER NOT NULL,
+                l1_block_hash     VARCHAR NOT NULL
             )",
             &[],
         )
@@ -118,15 +131,19 @@ async fn create_table_if_not_exists(
 
 async fn insert_into_postgres(
     client: &tokio_postgres::Client,
-    output_root: Bytes,
-    l1_output_index: U256,
+    l2_output_root: Bytes,
+    l2_output_index: U256,
     l2_block_number: U256,
     l1_timestamp: U256,
+    l1_transaction_hash: Bytes,
+    l1_block_number: U64,
+    l1_transaction_index: U64,
+    l1_block_hash: Bytes,
 ) -> Result<(), tokio_postgres::Error> {
     client
         .execute(
-            "INSERT INTO optimism (output_root, l1_output_index, l2_blocknumber, l1_timestamp) VALUES ($1, $2, $3, $4)",
-            &[&output_root.to_string(), &(l1_output_index.as_u64() as i32), &(l2_block_number.as_u64() as i32), &(l1_timestamp.as_u64() as i32)],
+            "INSERT INTO optimism (l2_output_root, l2_output_index, l2_blocknumber, l1_timestamp, l1_transaction_hash, l1_block_number, l1_transaction_index, l1_block_hash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+            &[&l2_output_root.to_string(), &(l2_output_index.as_u64() as i32), &(l2_block_number.as_u64() as i32), &(l1_timestamp.as_u64() as i32), &l1_transaction_hash.to_string(),  &(l1_block_number.as_u64() as i32),  &(l1_transaction_index.as_u64() as i32), &l1_block_hash.to_string()],
         )
         .await?;
     Ok(())
