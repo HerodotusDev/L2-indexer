@@ -35,14 +35,7 @@ async fn main() -> Result<()> {
     let address: Address = OP_PROPOSER_ADDRESS.parse()?;
 
     let mut from_block_num = U64([0]);
-    // TODO: If db is full get latest blocknumber and put .from_block with this value ( kill process / see duplicate)
     let mut new_block_num = client.get_block_number().await? - BLOCK_DELAY;
-
-    let mut filter = Filter::new()
-        .address(address)
-        .event("OutputProposed(bytes32,uint256,uint256,uint256)")
-        .from_block(0)
-        .to_block(new_block_num - 1);
 
     // Establish a PostgreSQL connection
     let (pg_client, connection) = tokio_postgres::connect(db_url, NoTls)
@@ -54,11 +47,18 @@ async fn main() -> Result<()> {
         }
     });
 
-    // Create the table if it doesn't exist
-    if let Err(err) = create_table_if_not_exists(&pg_client).await {
-        eprintln!("Error creating table: {:?}", err);
+    match create_table_if_not_exists(&pg_client).await {
+        Ok(table_result) => match table_result {
+            Some(max_blocknumber) => from_block_num = (max_blocknumber + 1).into(),
+            _ => {}
+        },
+        Err(err) => eprintln!("Error creating table: {:?}", err),
     }
-
+    let mut filter = Filter::new()
+        .address(address)
+        .event("OutputProposed(bytes32,uint256,uint256,uint256)")
+        .from_block(from_block_num)
+        .to_block(new_block_num);
     loop {
         let logs = client.get_logs(&filter).await?;
         println!(
@@ -70,7 +70,7 @@ async fn main() -> Result<()> {
             let l2_output_root = Bytes::from(log.topics[1].as_bytes().to_vec());
             let l2_output_index = U256::from_big_endian(&log.topics[2].as_bytes());
             let l2_block_number = U256::from_big_endian(&log.topics[3].as_bytes());
-            let l1_timestamp = U256::from_big_endian(&log.data[29..32]);
+            let l1_timestamp = U256::from_big_endian(&log.data[..]);
             let l1_transaction_hash =
                 Bytes::from(log.transaction_hash.unwrap().as_bytes().to_vec());
             let l1_block_number = log.block_number.unwrap();
@@ -99,20 +99,41 @@ async fn main() -> Result<()> {
         }
         thread::sleep(POLL_PERIOD);
 
-        from_block_num = new_block_num;
+        from_block_num = new_block_num + 1;
         new_block_num = client.get_block_number().await? - BLOCK_DELAY;
-        filter = filter
-            .from_block(from_block_num + 1)
-            .to_block(new_block_num - 1);
+        filter = filter.from_block(from_block_num).to_block(new_block_num);
     }
 }
 
 async fn create_table_if_not_exists(
     client: &tokio_postgres::Client,
-) -> Result<(), tokio_postgres::Error> {
-    client
-        .execute(
-            "CREATE TABLE IF NOT EXISTS optimism (
+) -> Result<Option<i32>, tokio_postgres::Error> {
+    let rows = client
+        .query(
+            "SELECT EXISTS (
+                SELECT 1
+                FROM information_schema.tables
+                WHERE table_name = 'optimism'
+                ) AS table_existence;",
+            &[],
+        )
+        .await?;
+
+    // And then check that we got back the same string we sent over.
+    let exist: bool = rows[0].get(0);
+    println!("Table exist : {exist}");
+    if exist {
+        let rows = client
+            .query("SELECT MAX(l1_block_number) as MaxBlock from optimism", &[])
+            .await?;
+
+        let max_blocknum: i32 = rows[0].get(0);
+        println!("max_blocknum : {max_blocknum}");
+        return Ok(Some(max_blocknum));
+    } else {
+        client
+            .execute(
+                "CREATE TABLE IF NOT EXISTS optimism (
                 id              SERIAL PRIMARY KEY,
                 l2_output_root     VARCHAR NOT NULL,
                 l2_output_index INTEGER NOT NULL,
@@ -123,10 +144,11 @@ async fn create_table_if_not_exists(
                 l1_transaction_index    INTEGER NOT NULL,
                 l1_block_hash     VARCHAR NOT NULL
             )",
-            &[],
-        )
-        .await?;
-    Ok(())
+                &[],
+            )
+            .await?;
+        return Ok(None);
+    }
 }
 
 async fn insert_into_postgres(
