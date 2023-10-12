@@ -1,0 +1,7 @@
+[global]
+preferred_async_runtime = "tokio"
+
+address = "0.0.0.0"
+port = 8000
+keep_alive = 5
+limits = { forms = 32768 }
