@@ -23,6 +23,21 @@ from 18276748 to 18276752, 0 pools found!
 from 18276753 to 18276757, 0 pools found!
 ```
 
----
+### Block number -> Output Index mapper Microservice
 
-### Blockhash contract:
+Request with `l2_block_number`, return `l2_output_root` and `l2_block_number`. In this case, we can query the database directly:
+
+```sql
+SELECT l2_output_root, l2_blocknumber
+FROM optimism
+ORDER BY ABS(l2_blocknumber - $1)
+LIMIT 1;
+```
+
+So that it return the nearest blocknumber from what was requested.
+
+Endpoint
+
+```
+http://127.0.0.1:8000/output-root
+```
