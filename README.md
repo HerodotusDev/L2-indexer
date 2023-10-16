@@ -21,7 +21,7 @@ cargo run -p monitor_events
 Then you can run server that expose endpoint to request `output_root`
 
 ```sh
-cargo run -p optimism_mf
+cargo run -p optimism_ms
 ```
 
 After your Rocket has launched, you need to send `l2_block` to get `output_root` for that block:
