@@ -1,14 +1,51 @@
 # optimism_on_starknet
 
+### Quick Start
+
+```sh
+git clone https://github.com/HerodotusDev/optimism_on_starknet.git
+```
+
+```sh
+cargo install
+```
+
+Don't forget to update `.env` file. You need DB_URL for database connection, you need RPC_URL for query event from contract.
+
+First you need to run monitoring service. It will start monitoring events from L1 contract and store output roots in database. You can run it with:
+
+```sh
+cargo run -p monitor_events
+```
+
+Then you can run server that expose endpoint to request `output_root`
+
+```sh
+cargo run -p optimism_mf
+```
+
+After your Rocket has launched, you need to send `l2_block` to get `output_root` for that block:
+
+#[post("/output_root")]
+
+```json
+{
+  "l2_block": 105249460
+}
+```
+
+Response :
+
+```json
+{
+  "l2_block": 105249463,
+  "l2_output_root": "0x9164daf0c16f1759525ee45f169b845ba7ba7f3248be8bb9f21f06b90097f754"
+}
+```
+
 ### Monitoring service:
 
 Monitor events (`OutputProposed`) from L1 contract. Retrieve `output_root`
-
-Try out
-
-```sh
-cargo run
-```
 
 First check table is exist. If it's exist, get latest L1 block that stored in db, and use this block number as `from_block` filter. If it's not exist, create table and query all events from `0` to `latest block - BLOCK_DELAY`.
 
