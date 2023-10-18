@@ -20,8 +20,14 @@ pub struct ParamsInput {
 
 #[derive(Serialize, Debug)]
 pub struct ParamsOutput {
-    l2_block: i32,
     l2_output_root: String,
+    l2_output_index: i32,
+    l2_blocknumber: i32,
+    l1_timestamp: i32,
+    l1_transaction_hash: String,
+    l1_block_number: i32,
+    l1_transaction_index: i32,
+    l1_block_hash: String,
 }
 
 #[rocket::async_trait]
@@ -69,14 +75,15 @@ async fn connect_db() -> Result<tokio_postgres::Client> {
 async fn get_output_root_from_block(
     params: &ParamsInput,
     pg_client: &tokio_postgres::Client,
-) -> Result<(String, i32)> {
+) -> Result<(String, i32, i32, i32, String, i32, i32, String)> {
     let l2_block = params.l2_block;
 
     let rows = pg_client
         .query(
-            "SELECT l2_output_root, l2_blocknumber 
+            "SELECT l2_output_root, l2_output_index, l2_blocknumber, l1_timestamp, l1_transaction_hash, l1_block_number, l1_transaction_index, l1_block_hash
             FROM optimism 
-            ORDER BY ABS(l2_blocknumber - $1)
+            WHERE l2_blocknumber >= $1
+            ORDER BY l2_blocknumber ASC
             LIMIT 1;",
             &[&l2_block],
         )
@@ -86,12 +93,33 @@ async fn get_output_root_from_block(
     } else {
         // Get both output_root and l2_blocknum from the query result
         let l2_output_root: String = rows[0].get(0);
-        let l2_blocknum_result: i32 = rows[0].get(1);
+        let l2_output_index: i32 = rows[0].get(1);
+        let l2_blocknumber: i32 = rows[0].get(2);
+        let l1_timestamp: i32 = rows[0].get(3);
+        let l1_transaction_hash: String = rows[0].get(4);
+        let l1_block_number: i32 = rows[0].get(5);
+        let l1_transaction_index: i32 = rows[0].get(6);
+        let l1_block_hash: String = rows[0].get(7);
 
         println!("L2 output root: {}", l2_output_root);
-        println!("L2 block number: {}", l2_blocknum_result);
+        println!("L2 output index: {}", l2_output_index);
+        println!("L2 block number: {}", l2_blocknumber);
+        println!("L1 timestamp: {}", l1_timestamp);
+        println!("L1 transaction hash: {}", l1_transaction_hash);
+        println!("L1 block number: {}", l1_block_number);
+        println!("L1 transaction index: {}", l1_transaction_index);
+        println!("L1 block hash: {}", l1_block_hash);
 
-        return Ok((l2_output_root, l2_blocknum_result));
+        return Ok((
+            l2_output_root,
+            l2_output_index,
+            l2_blocknumber,
+            l1_timestamp,
+            l1_transaction_hash,
+            l1_block_number,
+            l1_transaction_index,
+            l1_block_hash,
+        ));
     }
 }
 
@@ -101,10 +129,25 @@ async fn get_output_root(
 ) -> Result<Json<ParamsOutput>, status::Conflict<std::string::String>> {
     let pg_client = connect_db().await.unwrap();
     match get_output_root_from_block(&params, &pg_client).await {
-        Ok((l2_output_root, l2_block)) => {
+        Ok((
+            l2_output_root,
+            l2_output_index,
+            l2_blocknumber,
+            l1_timestamp,
+            l1_transaction_hash,
+            l1_block_number,
+            l1_transaction_index,
+            l1_block_hash,
+        )) => {
             return Ok(Json(ParamsOutput {
                 l2_output_root,
-                l2_block,
+                l2_output_index,
+                l2_blocknumber,
+                l1_transaction_hash,
+                l1_transaction_index,
+                l1_timestamp,
+                l1_block_number,
+                l1_block_hash,
             }));
         }
         Err(e) => Err(status::Conflict(Some(e.to_string()))),

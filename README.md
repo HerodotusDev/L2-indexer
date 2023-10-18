@@ -30,7 +30,7 @@ After your Rocket has launched, you need to send `l2_block` to get `output_root`
 
 ```json
 {
-  "l2_block": 105249460
+  "l2_block": 105240464
 }
 ```
 
@@ -38,8 +38,14 @@ Response :
 
 ```json
 {
-  "l2_block": 105249463,
-  "l2_output_root": "0x9164daf0c16f1759525ee45f169b845ba7ba7f3248be8bb9f21f06b90097f754"
+  "l2_output_root": "0x9b5482216a077163ed533a7f5a0379500f720583a07ec25e8deaa62a88aa4956",
+  "l2_output_index": 3,
+  "l2_blocknumber": 105242263,
+  "l1_timestamp": 1686084995,
+  "l1_transaction_hash": "0xbad3d21794607d1584b17a64925191aafcfc1479fb851030b3b8a11b58ec5d6b",
+  "l1_block_number": 17423911,
+  "l1_transaction_index": 146,
+  "l1_block_hash": "0x021dcc4c09f46e1daa3ea7db4949be5da934aad91a9b07eebc05b61e048edaae"
 }
 ```
 
@@ -65,13 +71,14 @@ from 18276753 to 18276757, 0 pools found!
 Request with `l2_block_number`, return `l2_output_root` and `l2_block_number`. In this case, we can query the database directly:
 
 ```sql
-SELECT l2_output_root, l2_blocknumber
-FROM optimism
-ORDER BY ABS(l2_blocknumber - $1)
-LIMIT 1;
+  SELECT l2_output_root, l2_output_index, l2_blocknumber, l1_timestamp, l1_transaction_hash, l1_block_number, l1_transaction_index, l1_block_hash
+            FROM optimism
+            WHERE l2_blocknumber >= $1
+            ORDER BY l2_blocknumber ASC
+            LIMIT 1;
 ```
 
-So that it return the nearest blocknumber from what was requested.
+So that it return the nearest, but newer blocknumber from what was requested.
 
 Endpoint
 
