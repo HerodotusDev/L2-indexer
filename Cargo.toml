@@ -1,12 +1,13 @@
 [workspace.package]
-name = "optimism-on-starknet"
+name = "opstack-on-starknet"
 version = "0.1.0"
 edition = "2021"
 
 [workspace]
-members = ["crates/monitor_events", "crates/optimism_ms"]
+members = ["crates/monitor_events", "crates/opstack_ms"]
 
 [workspace.dependencies]
+config = "0.13.1"
 rocket = { version = "=0.5.0-rc.3", features = ["json"] }
 tokio-postgres = "0.7.10"
 dotenv = "0.15.0"

@@ -12,6 +12,21 @@ cargo install
 
 Don't forget to update `.env` file. You need DB_URL for database connection, you need RPC_URL for query event from contract.
 
+Also you need to put NETWORK for config network you want to monitoring.
+
+```json
+{
+  // It will be table name of your postsql
+  "name": "base",
+  // You need to get L1 contract the OPstack chain send transaction to settle.
+  "l1_contract": "0x56315b90c40730925ec5485cf004d835058518A0",
+  // You can customize your own block delay number. It will wait monitoring service to get more finalized block.
+  "block_delay": 20,
+  // After you run the service, it will poll the event emit again after the second below.
+  "poll_period_sec": 60
+}
+```
+
 First you need to run monitoring service. It will start monitoring events from L1 contract and store output roots in database. You can run it with:
 
 ```sh
