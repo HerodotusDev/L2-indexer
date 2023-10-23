@@ -1,5 +1,5 @@
 {
-    "name": "zora",
+    "name": "zora_mainnet",
     "l1_contract": "0x9E6204F750cD866b299594e2aC9eA824E2e5f95c",
     "block_delay": 20,
     "poll_period_sec": 60
