@@ -1,9 +1,9 @@
-# optimism_on_starknet
+# opstack_on_starknet
 
 ### Quick Start
 
 ```sh
-git clone https://github.com/HerodotusDev/optimism_on_starknet.git
+git clone https://github.com/HerodotusDev/opstack_on_starknet.git
 ```
 
 ```sh
