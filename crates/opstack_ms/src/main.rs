@@ -15,6 +15,7 @@ use tokio_postgres::NoTls;
 
 #[derive(Deserialize, Debug)]
 pub struct ParamsInput {
+    network: String,
     l2_block: i32,
 }
 
@@ -77,17 +78,14 @@ async fn get_output_root_from_block(
     pg_client: &tokio_postgres::Client,
 ) -> Result<(String, i32, i32, i32, String, i32, i32, String)> {
     let l2_block = params.l2_block;
+    let network = &params.network;
+    let select_query = format!("SELECT l2_output_root, l2_output_index, l2_blocknumber, l1_timestamp, l1_transaction_hash, l1_block_number, l1_transaction_index, l1_block_hash
+    FROM {} 
+    WHERE l2_blocknumber >= $1
+    ORDER BY l2_blocknumber ASC
+    LIMIT 1;", network);
 
-    let rows = pg_client
-        .query(
-            "SELECT l2_output_root, l2_output_index, l2_blocknumber, l1_timestamp, l1_transaction_hash, l1_block_number, l1_transaction_index, l1_block_hash
-            FROM optimism 
-            WHERE l2_blocknumber >= $1
-            ORDER BY l2_blocknumber ASC
-            LIMIT 1;",
-            &[&l2_block],
-        )
-        .await?;
+    let rows = pg_client.query(&select_query, &[&l2_block]).await?;
     if rows.len() == 0 {
         return Err(eyre::eyre!("Expected at least 1 row"));
     } else {

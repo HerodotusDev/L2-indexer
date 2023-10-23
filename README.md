@@ -39,12 +39,13 @@ Then you can run server that expose endpoint to request `output_root`
 cargo run -p optimism_ms
 ```
 
-After your Rocket has launched, you need to send `l2_block` to get `output_root` for that block:
+After your Rocket has launched, you need to send `l2_block` and `network` to get `output_root` for that block:
 
 #[post("/output_root")]
 
 ```json
 {
+  "name": "optimism",
   "l2_block": 105240464
 }
 ```
