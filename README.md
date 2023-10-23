@@ -23,7 +23,9 @@ Also you need to put NETWORK for config network you want to monitoring.
   // You can customize your own block delay number. It will wait monitoring service to get more finalized block.
   "block_delay": 20,
   // After you run the service, it will poll the event emit again after the second below.
-  "poll_period_sec": 60
+  "poll_period_sec": 60,
+  // (Optional) eth_getLogat have rate limit. So especially when calling like base_goerli or optimism_goerli, if you don't batch the request, will face error. If you don't put any parameter default will be latest block number.
+  "batch_size": 100000
 }
 ```
 

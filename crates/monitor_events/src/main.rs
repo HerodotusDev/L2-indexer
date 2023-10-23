@@ -29,6 +29,7 @@ struct Networks {
     l1_contract: String,
     block_delay: u64,
     poll_period_sec: u64,
+    batch_size: Option<u64>,
 }
 
 fn make(network_config: &str) -> Config {
@@ -62,6 +63,7 @@ async fn main() -> Result<()> {
 
     let mut from_block_num = U64([0]);
     let mut new_block_num = client.get_block_number().await? - block_delay;
+    let batch_size = network.batch_size.unwrap_or(new_block_num.as_u64());
 
     // Establish a PostgreSQL connection
     let (pg_client, connection) = tokio_postgres::connect(db_url, NoTls)
@@ -85,7 +87,19 @@ async fn main() -> Result<()> {
         .event("OutputProposed(bytes32,uint256,uint256,uint256)")
         .from_block(from_block_num)
         .to_block(new_block_num);
+
     loop {
+        let block_gap = new_block_num.as_u64() - from_block_num.as_u64();
+        let upper_limit = if block_gap > batch_size {
+            from_block_num.as_u64() + batch_size as u64 - 1
+        } else {
+            new_block_num.as_u64()
+        };
+
+        filter = filter
+            .from_block(from_block_num)
+            .to_block(U64([upper_limit]));
+
         let logs = client.get_logs(&filter).await?;
         println!(
             "from {from_block_num:?} to {new_block_num:?}, {} pools found!",
@@ -124,11 +138,14 @@ async fn main() -> Result<()> {
                 eprintln!("Error inserting data into PostgreSQL: {:?}", err);
             }
         }
-        thread::sleep(poll_period_sec);
-
-        from_block_num = new_block_num + 1;
-        new_block_num = client.get_block_number().await? - block_delay;
-        filter = filter.from_block(from_block_num).to_block(new_block_num);
+        // If we are in batch mode, don't sleep, and prepare for the next batch
+        if block_gap > batch_size {
+            from_block_num = U64([upper_limit + 1]);
+        } else {
+            thread::sleep(poll_period_sec);
+            from_block_num = U64([upper_limit + 1]);
+            new_block_num = client.get_block_number().await? - block_delay;
+        }
     }
 }
 
