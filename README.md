@@ -1,13 +1,30 @@
 # opstack_on_starknet
 
-### Quick Start
-
-```sh
-git clone https://github.com/HerodotusDev/opstack_on_starknet.git
-```
+### Quick Start with PM2
 
 ```sh
 cargo install
+```
+
+```sh
+cargo build --release
+```
+
+You need to modify `pm2.config.js` file to run monitoring services in multiple processes in one command.
+
+```sh
+pm2 start pm2.config.js
+```
+
+This will launch 6 Apps to monitor events on Optimism, Zora and Base for Goerli testnet and Mainnet respectively
+
+```
+[PM2] App [monitor-base-goerli] launched (1 instances)
+[PM2] App [monitor-zora-goerli] launched (1 instances)
+[PM2] App [monitor-optimism-goerli] launched (1 instances)
+[PM2] App [monitor-base-mainnet] launched (1 instances)
+[PM2] App [monitor-optimism-mainnet] launched (1 instances)
+[PM2] App [monitor-zora-mainnet] launched (1 instances)
 ```
 
 Don't forget to update `.env` file. You need DB_URL for database connection, you need RPC_URL for query event from contract.
