@@ -5,10 +5,6 @@
 ### Quick Start with PM2
 
 ```sh
-cargo install
-```
-
-```sh
 cargo build --release
 ```
 
