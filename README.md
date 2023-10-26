@@ -1,6 +1,6 @@
 <!-- markdownlint-disable -->
 <div align="center">
-  <img src=".github/oponsn.svg" height="150">
+  <img src=".github/oponsn.svg" height="250">
 </div>
 <br />
 <!-- markdownlint-restore -->

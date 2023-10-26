@@ -13,12 +13,14 @@ use rocket::{Data, Request};
 use serde::{Deserialize, Serialize};
 use tokio_postgres::NoTls;
 
+// Input for request parameters
 #[derive(Deserialize, Debug)]
 pub struct ParamsInput {
     network: String,
     l2_block: i32,
 }
 
+// Output for request parameters
 #[derive(Serialize, Debug)]
 pub struct ParamsOutput {
     l2_output_root: String,
@@ -55,6 +57,7 @@ impl<'r> FromData<'r> for ParamsInput {
     }
 }
 
+/// A function that connects to the postgres database
 async fn connect_db() -> Result<tokio_postgres::Client> {
     dotenv().ok();
     let db_url: &str = &std::env::var("DB_URL").expect("DB_URL must be set.");
@@ -73,6 +76,7 @@ async fn connect_db() -> Result<tokio_postgres::Client> {
     return Ok(pg_client);
 }
 
+/// A function that gets the output root from a block number query from postgres db
 async fn get_output_root_from_block(
     params: &ParamsInput,
     pg_client: &tokio_postgres::Client,
