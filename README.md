@@ -1,88 +1,18 @@
-# opstack_on_starknet
+<!-- markdownlint-disable -->
+<div align="center">
+  <img src=".github/oponsn.svg" height="150">
+</div>
+<br />
+<!-- markdownlint-restore -->
 
-### Quick Start with PM2
+# OP Stack on Starknet
 
-```sh
-cargo install
-```
+**OP Stack on Starknet is part of Herodotus infrastructure stack to support OP Stack rollup block hash on Starknet.**
 
-```sh
-cargo build --release
-```
+### Architecture
 
-You need to modify `pm2.config.js` file to run monitoring services in multiple processes in one command.
-
-```sh
-pm2 start pm2.config.js
-```
-
-This will launch 6 Apps to monitor events on Optimism, Zora and Base for Goerli testnet and Mainnet respectively
-
-```
-[PM2] App [monitor-base-goerli] launched (1 instances)
-[PM2] App [monitor-zora-goerli] launched (1 instances)
-[PM2] App [monitor-optimism-goerli] launched (1 instances)
-[PM2] App [monitor-base-mainnet] launched (1 instances)
-[PM2] App [monitor-optimism-mainnet] launched (1 instances)
-[PM2] App [monitor-zora-mainnet] launched (1 instances)
-```
-
-Don't forget to update `.env` file. You need DB_URL for database connection, you need RPC_URL for query event from contract.
-
-Also you need to put NETWORK for config network you want to monitoring.
-
-```json
-{
-  // It will be table name of your postsql
-  "name": "base",
-  // You need to get L1 contract the OPstack chain send transaction to settle.
-  "l1_contract": "0x56315b90c40730925ec5485cf004d835058518A0",
-  // You can customize your own block delay number. It will wait monitoring service to get more finalized block.
-  "block_delay": 20,
-  // After you run the service, it will poll the event emit again after the second below.
-  "poll_period_sec": 60,
-  // (Optional) eth_getLogat have rate limit. So especially when calling like base_goerli or optimism_goerli, if you don't batch the request, will face error. If you don't put any parameter default will be latest block number.
-  "batch_size": 100000
-}
-```
-
-First you need to run monitoring service. It will start monitoring events from L1 contract and store output roots in database. You can run it with:
-
-```sh
-cargo run -p monitor_events
-```
-
-Then you can run server that expose endpoint to request `output_root`
-
-```sh
-cargo run -p optimism_ms
-```
-
-After your Rocket has launched, you need to send `l2_block` and `network` to get `output_root` for that block:
-
-#[post("/output_root")]
-
-```json
-{
-  "name": "optimism",
-  "l2_block": 105240464
-}
-```
-
-Response :
-
-```json
-{
-  "l2_output_root": "0x9b5482216a077163ed533a7f5a0379500f720583a07ec25e8deaa62a88aa4956",
-  "l2_output_index": 3,
-  "l2_blocknumber": 105242263,
-  "l1_timestamp": 1686084995,
-  "l1_transaction_hash": "0xbad3d21794607d1584b17a64925191aafcfc1479fb851030b3b8a11b58ec5d6b",
-  "l1_block_number": 17423911,
-  "l1_transaction_index": 146,
-  "l1_block_hash": "0x021dcc4c09f46e1daa3ea7db4949be5da934aad91a9b07eebc05b61e048edaae"
-}
-```
+1. **[Monitor Events](/crates/monitor_events/README.md)**: Run monitoring service that gets network spec as pm2 config. It keeps track OP Stack rollup that emitted block hash preimage(Output Root) on the L1 contract.
+2. **[OP Stack Micro Service](/crates/opstack_ms/README.md)**: Rust HTTP micro-service provides OP Stack information including block hash requested by block number.
 
 ### Monitoring service:
 
