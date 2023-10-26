@@ -5,9 +5,9 @@
 <br />
 <!-- markdownlint-restore -->
 
-# OP Stack on Starknet
+# OP Stack Indexer
 
-**OP Stack on Starknet is part of Herodotus infrastructure stack to support OP Stack rollup block hash on Starknet.**
+**This repo implements an indexer who's role is to watch for OP Stack events emitted on Ethereum and index the Output Roots into a database for querying later**
 
 ### Architecture
 
