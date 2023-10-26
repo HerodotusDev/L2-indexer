@@ -1,13 +1,6 @@
-<!-- markdownlint-disable -->
-<div align="center">
-  <img src=".github/oponsn.svg" height="250">
-</div>
-<br />
-<!-- markdownlint-restore -->
-
 # OP Stack Indexer
 
-**This repo implements an indexer who's role is to watch for OP Stack events emitted on Ethereum and index the Output Roots into a database for querying later**
+**This repo implements an indexer who's role is to watch for OP Stack events emitted on Ethereum and index the Output Roots into a database for querying later -- providing example for Optimism, Base, Zora chain**
 
 ### Architecture
 
