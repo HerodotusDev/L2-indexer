@@ -1,6 +1,6 @@
 # OP Stack Indexer
 
-**This repo implements an indexer who's role is to watch for OP Stack events emitted on Ethereum and index the Output Roots into a database for querying later -- providing example for Optimism, Base, Zora chain**
+**This repo implements an indexer whose role is to watch for OP Stack events emitted on Ethereum and index the Output Roots into a database for querying later -- providing examples for Optimism, Base, Zora chain**
 
 ### Architecture
 
@@ -26,7 +26,7 @@ from 18276753 to 18276757, 0 pools found!
 
 ### Block number -> Output Index mapper Microservice
 
-Request with `l2_block_number`, return `l2_output_root` and `l2_block_number`. In this case, we can query the database directly:
+Request with `l2_block_number`, `network_name` return `l2_output_root` and `l2_block_number`. In this case, we can query the database directly:
 
 ```sql
   SELECT l2_output_root, l2_output_index, l2_blocknumber, l1_timestamp, l1_transaction_hash, l1_block_number, l1_transaction_index, l1_block_hash
