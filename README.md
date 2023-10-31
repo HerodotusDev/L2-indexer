@@ -43,3 +43,11 @@ Endpoint
 ```
 http://127.0.0.1:8000/output-root
 ```
+
+## License
+
+`opstack_indexer` is licensed under the [GNU General Public License v3.0](./LICENSE).
+
+---
+
+Herodotus Dev Ltd - 2023
