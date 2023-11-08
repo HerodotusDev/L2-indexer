@@ -1,5 +1,11 @@
 # OP Stack Indexer
 
+<div align="center">
+  <img src=".github/opstack_Indexer.png" height="300">
+</div>
+
+---
+
 **This repo implements an indexer whose role is to watch for OP Stack events emitted on Ethereum and index the Output Roots into a database for querying later -- providing examples for Optimism, Base, Zora chain**
 
 ### Architecture
