@@ -1,8 +1,6 @@
 # OP Stack Indexer
 
-<div align="center">
-  <img src=".github/opstack_Indexer.png" height="300">
-</div>
+![](.github/opstack_Indexer.png)
 
 ---
 
