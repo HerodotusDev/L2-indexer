@@ -3,5 +3,5 @@
     "l1_contract": "0xE6Dfba0953616Bacab0c9A8ecb3a9BBa77FC15c0",
     "block_delay": 20,
     "poll_period_sec": 60,
-    "batch_size": 100000
+    "batch_size": 50000
 }

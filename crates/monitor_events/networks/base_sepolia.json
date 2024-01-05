@@ -2,5 +2,6 @@
     "name": "base_sepolia",
     "l1_contract": "0x84457ca9D0163FbC4bbfe4Dfbb20ba46e48DF254",
     "block_delay": 20,
-    "poll_period_sec": 60
+    "poll_period_sec": 60,
+    "batch_size": 50000
 }

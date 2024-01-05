@@ -6,6 +6,7 @@ use eyre::Result;
 use opstack::create_opstack_table_if_not_exists;
 use serde::Deserialize;
 use std::{
+    str::FromStr,
     sync::Arc,
     thread,
     time::{self, Duration},
@@ -30,6 +31,24 @@ struct Networks {
     batch_size: Option<u64>,
 }
 
+/// A chain type
+enum ChainType {
+    Arbitrum,
+    Opstack,
+}
+
+impl FromStr for ChainType {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "arbitrum" => Ok(ChainType::Arbitrum),
+            "opstack" => Ok(ChainType::Opstack),
+            _ => Err(anyhow::anyhow!("invalid chain ")),
+        }
+    }
+}
+
 /// A builder that gets config from JSON and returns Config.
 /// Parameters:
 /// * network_config: The name of the network want to get from JSON
@@ -48,7 +67,8 @@ async fn main() -> Result<()> {
     // Settup the environment variables
     dotenv().ok();
     let rpc_url: &str = &std::env::var("RPC_URL").expect("RPC_URL must be set.");
-    let parse_type: &str = &std::env::var("TYPE").expect("TYPE must be set.");
+    let parse_type: ChainType =
+        ChainType::from_str(&std::env::var("TYPE").expect("TYPE must be set.")).unwrap();
     let db_url: &str = &std::env::var("DB_URL").expect("DB_URL must be set.");
     let network_config: &str = &std::env::var("NETWORK").expect("NETWORK must be set.");
     let provider = Provider::<Http>::try_from(rpc_url)?;
@@ -78,22 +98,22 @@ async fn main() -> Result<()> {
     });
 
     match parse_type {
-        "opstack" =>
+        ChainType::Opstack =>
         // Create a table if it doesn't exist
         {
             match create_opstack_table_if_not_exists(table_name.clone(), &pg_client).await {
                 Ok(table_result) => match table_result {
                     Some(max_blocknumber) => from_block_num = (max_blocknumber + 1).into(),
-                    _ => {}
+                    None => from_block_num = from_block_num,
                 },
                 Err(err) => eprintln!("Error creating table: {:?}", err),
             }
         }
-        "arbitrum" => {
+        ChainType::Arbitrum => {
             match create_arbitrum_table_if_not_exists(table_name.clone(), &pg_client).await {
                 Ok(table_result) => match table_result {
                     Some(max_blocknumber) => from_block_num = (max_blocknumber + 1).into(),
-                    _ => {}
+                    None => from_block_num = from_block_num,
                 },
                 Err(err) => eprintln!("Error creating table: {:?}", err),
             }
@@ -102,14 +122,14 @@ async fn main() -> Result<()> {
     }
 
     let mut filter = match parse_type {
-        "opstack" => Filter::new()
+        ChainType::Opstack => Filter::new()
             .address(address)
             .event("OutputProposed(bytes32,uint256,uint256,uint256)")
             .from_block(from_block_num)
             .to_block(new_block_num),
-        "arbitrum" => Filter::new()
+        ChainType::Arbitrum => Filter::new()
             .address(address)
-            .event("OutputProposed(bytes32,uint256,uint256,uint256)")
+            .event("SendRootUpdated(bytes32,bytes32)")
             .from_block(from_block_num)
             .to_block(new_block_num),
         _ => Filter::new(),
@@ -136,7 +156,7 @@ async fn main() -> Result<()> {
 
         for log in logs.iter() {
             match parse_type {
-                "opstack" => {
+                ChainType::Opstack => {
                     let params = handle_opstack_events(log);
                     // Insert the data into PostgreSQL
                     if let Err(err) =
@@ -145,7 +165,7 @@ async fn main() -> Result<()> {
                         eprintln!("Error inserting data into PostgreSQL: {:?}", err);
                     }
                 }
-                "arbitrum" => {
+                ChainType::Arbitrum => {
                     let params = handle_arbitrum_events(log);
                     // Insert the data into PostgreSQL
                     if let Err(err) =

@@ -2,5 +2,6 @@
     "name": "optimism_mainnet",
     "l1_contract": "0xdfe97868233d1aa22e815a266982f2cf17685a27",
     "block_delay": 20,
-    "poll_period_sec": 60
+    "poll_period_sec": 60,
+    "batch_size": 50000
 }
