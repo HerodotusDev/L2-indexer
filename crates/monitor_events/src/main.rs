@@ -83,7 +83,6 @@ async fn main() -> Result<()> {
     let address: Address = network.l1_contract.parse()?;
 
     // Set block number values to filter
-    let mut from_block_num = U64([0]);
     let mut new_block_num = client.get_block_number().await? - block_delay;
     let batch_size = network.batch_size.unwrap_or(new_block_num.as_u64());
 
@@ -97,29 +96,28 @@ async fn main() -> Result<()> {
         }
     });
 
-    match parse_type {
+    let mut from_block_num = match parse_type {
         ChainType::Opstack =>
         // Create a table if it doesn't exist
         {
             match create_opstack_table_if_not_exists(table_name.clone(), &pg_client).await {
                 Ok(table_result) => match table_result {
-                    Some(max_blocknumber) => from_block_num = (max_blocknumber + 1).into(),
-                    None => from_block_num = from_block_num,
+                    Some(max_blocknumber) => (max_blocknumber + 1).into(),
+                    None => U64([0]),
                 },
-                Err(err) => eprintln!("Error creating table: {:?}", err),
+                Err(err) => panic!("Error creating table: {:?}", err),
             }
         }
         ChainType::Arbitrum => {
             match create_arbitrum_table_if_not_exists(table_name.clone(), &pg_client).await {
                 Ok(table_result) => match table_result {
-                    Some(max_blocknumber) => from_block_num = (max_blocknumber + 1).into(),
-                    None => from_block_num = from_block_num,
+                    Some(max_blocknumber) => (max_blocknumber + 1).into(),
+                    None => U64([0]),
                 },
-                Err(err) => eprintln!("Error creating table: {:?}", err),
+                Err(err) => panic!("Error creating table: {:?}", err),
             }
         }
-        _ => println!("Please set TYPE to opstack or arbitrum"),
-    }
+    };
 
     let mut filter = match parse_type {
         ChainType::Opstack => Filter::new()
@@ -132,7 +130,6 @@ async fn main() -> Result<()> {
             .event("SendRootUpdated(bytes32,bytes32)")
             .from_block(from_block_num)
             .to_block(new_block_num),
-        _ => Filter::new(),
     };
 
     // Loop to get the logs with time gap and with batch
@@ -174,7 +171,6 @@ async fn main() -> Result<()> {
                         eprintln!("Error inserting data into PostgreSQL: {:?}", err);
                     }
                 }
-                _ => println!("Please set TYPE to opstack or arbitrum"),
             }
         }
         // If we are in batch mode, don't sleep, and prepare for the next batch

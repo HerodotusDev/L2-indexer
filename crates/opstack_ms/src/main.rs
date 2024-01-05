@@ -22,7 +22,7 @@ pub struct ParamsInput {
 
 // Output for request parameters
 #[derive(Serialize, Debug)]
-pub struct ParamsOutput {
+pub struct OPStackParamsOutput {
     l2_output_root: String,
     l2_output_index: i32,
     l2_blocknumber: i32,
@@ -73,7 +73,7 @@ async fn connect_db() -> Result<tokio_postgres::Client> {
         }
     });
 
-    return Ok(pg_client);
+    Ok(pg_client)
 }
 
 /// A function that gets the output root from a block number query from postgres db
@@ -90,8 +90,8 @@ async fn get_output_root_from_block(
     LIMIT 1;", network);
 
     let rows = pg_client.query(&select_query, &[&l2_block]).await?;
-    if rows.len() == 0 {
-        return Err(eyre::eyre!("Expected at least 1 row"));
+    if rows.is_empty() {
+        Err(eyre::eyre!("Expected at least 1 row"))
     } else {
         // Get both output_root and l2_blocknum from the query result
         let l2_output_root: String = rows[0].get(0);
@@ -112,7 +112,7 @@ async fn get_output_root_from_block(
         println!("L1 transaction index: {}", l1_transaction_index);
         println!("L1 block hash: {}", l1_block_hash);
 
-        return Ok((
+        Ok((
             l2_output_root,
             l2_output_index,
             l2_blocknumber,
@@ -121,14 +121,14 @@ async fn get_output_root_from_block(
             l1_block_number,
             l1_transaction_index,
             l1_block_hash,
-        ));
+        ))
     }
 }
 
 #[post("/output-root", format = "json", data = "<params>")]
 async fn get_output_root(
     params: ParamsInput,
-) -> Result<Json<ParamsOutput>, status::Conflict<std::string::String>> {
+) -> Result<Json<OPStackParamsOutput>, status::Conflict<std::string::String>> {
     let pg_client = connect_db().await.unwrap();
     match get_output_root_from_block(&params, &pg_client).await {
         Ok((
@@ -140,18 +140,16 @@ async fn get_output_root(
             l1_block_number,
             l1_transaction_index,
             l1_block_hash,
-        )) => {
-            return Ok(Json(ParamsOutput {
-                l2_output_root,
-                l2_output_index,
-                l2_blocknumber,
-                l1_transaction_hash,
-                l1_transaction_index,
-                l1_timestamp,
-                l1_block_number,
-                l1_block_hash,
-            }));
-        }
+        )) => Ok(Json(OPStackParamsOutput {
+            l2_output_root,
+            l2_output_index,
+            l2_blocknumber,
+            l1_transaction_hash,
+            l1_transaction_index,
+            l1_timestamp,
+            l1_block_number,
+            l1_block_hash,
+        })),
         Err(e) => Err(status::Conflict(Some(e.to_string()))),
     }
 }
