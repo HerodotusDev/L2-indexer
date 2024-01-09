@@ -1,6 +1,6 @@
 # Monitor Events
 
-**Run monitoring service that gets network spec as pm2 config. It keeps track OP Stack rollup that emitted block hash preimage(Output Root) on the L1 contract.**
+**Run monitoring service that gets network spec as pm2 config. It keeps track OP Stack rollup & Arbitrum that emitted block hash preimage(Output Root) on the L1 contract.**
 
 ### Quick Start with PM2
 
@@ -14,9 +14,10 @@ You need to modify the `pm2.config.js` file to run monitoring services in multip
 pm2 start pm2.config.js
 ```
 
-This will launch 6 Apps to monitor events on Optimism, Zora, and Base for Goerli testnet and Mainnet respectively. If you want your own OP Stack modify the file.
+This will launch 7 Apps to monitor events on Arbitrum, Optimism, Zora, and Base for Goerli testnet and Mainnet respectively. If you want your own OP Stack modify the file.
 
 ```
+[PM2] App [monitor-arbitrum-mainnet] launched (1 instances)
 [PM2] App [monitor-base-goerli] launched (1 instances)
 [PM2] App [monitor-zora-goerli] launched (1 instances)
 [PM2] App [monitor-optimism-goerli] launched (1 instances)
