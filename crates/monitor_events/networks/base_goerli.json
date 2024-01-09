@@ -2,5 +2,6 @@
     "name": "base_goerli",
     "l1_contract": "0x2A35891ff30313CcFa6CE88dcf3858bb075A2298",
     "block_delay": 20,
-    "poll_period_sec": 60
+    "poll_period_sec": 60,
+    "batch_size": 50000
 }

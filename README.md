@@ -1,15 +1,15 @@
-# OP Stack Indexer
+# L2 Indexer
 
-![](.github/opstack_Indexer.png)
+<!-- ![](.github/opstack_Indexer.png) -->
 
 ---
 
-**This repo implements an indexer whose role is to watch for OP Stack events emitted on Ethereum and index the Output Roots into a database for querying later -- providing examples for Optimism, Base, Zora chain**
+**This repo implements an indexer whose role is to watch for L2 rollups events emitted on Ethereum and index the Output Roots into a database for querying later -- providing examples for Arbitrum, Optimism, Base, Zora chain**
 
 ### Architecture
 
-1. **[Monitor Events](/crates/monitor_events/README.md)**: Run monitoring service that gets network spec as pm2 config. It keeps track OP Stack rollup that emitted block hash preimage(Output Root) on the L1 contract.
-2. **[OP Stack Micro Service](/crates/opstack_ms/README.md)**: Rust HTTP micro-service provides OP Stack information including block hash requested by block number.
+1. **[Monitor Events](/crates/monitor_events/README.md)**: Run monitoring service that gets network spec as pm2 config. It keeps track OP Stack rollup & Arbitrum that emitted block hash preimage(Output Root) on the L1 contract.
+2. **[L2 Micro Service](/crates/l2-micro-serviceREADME.md)**: Rust HTTP micro-service provides L2 information including block hash requested by block number.
 
 ### Monitoring service:
 

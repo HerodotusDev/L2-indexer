@@ -1,0 +1,7 @@
+{
+    "name": "arbitrum_mainnet",
+    "l1_contract": "0x0B9857ae2D4A3DBe74ffE1d7DF045bb7F96E4840",
+    "block_delay": 20,
+    "poll_period_sec": 60,
+    "batch_size": 50000
+}

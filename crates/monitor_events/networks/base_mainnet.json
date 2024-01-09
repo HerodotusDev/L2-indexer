@@ -2,5 +2,6 @@
     "name": "base_mainnet",
     "l1_contract": "0x56315b90c40730925ec5485cf004d835058518A0",
     "block_delay": 20,
-    "poll_period_sec": 60
+    "poll_period_sec": 60,
+    "batch_size": 50000
 }

@@ -2,5 +2,6 @@
     "name": "zora_goerli",
     "l1_contract": "0xdD292C9eEd00f6A32Ff5245d0BCd7f2a15f24e00",
     "block_delay": 20,
-    "poll_period_sec": 60
+    "poll_period_sec": 60,
+    "batch_size": 50000
 }

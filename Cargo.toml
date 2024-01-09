@@ -1,10 +1,10 @@
 [workspace.package]
-name = "opstack-indexer"
+name = "l2-indexer"
 version = "0.1.0"
 edition = "2021"
 
 [workspace]
-members = ["crates/monitor_events", "crates/opstack_ms"]
+members = ["crates/monitor_events", "crates/l2-micro-service"]
 
 [workspace.dependencies]
 config = "0.13.1"
@@ -26,3 +26,4 @@ ethers-contract-derive = "2.0.10"
 ethers-core = "2.0.10"
 ethers-contract = "2.0.10"
 ethers-providers = "2.0.10"
+reqwest = "0.11.22"
