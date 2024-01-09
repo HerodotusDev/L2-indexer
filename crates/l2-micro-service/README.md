@@ -1,4 +1,4 @@
-# OP Stack Micro Service
+# L2 Micro Service
 
 **Rust HTTP micro-service provides OP Stack information including block hash requested by block number.**
 
@@ -9,7 +9,7 @@ First, you need to run the monitoring service and your DB_URL should be full of 
 Then you can run a server that exposes endpoint to request `output_root`
 
 ```sh
-cargo run -p optimism_ms
+cargo run -p l2-micro-service
 ```
 
 After your Rocket has launched, you need to send `l2_block` and `network` to get `output_root` for that block:

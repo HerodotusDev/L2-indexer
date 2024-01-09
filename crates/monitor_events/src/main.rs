@@ -19,6 +19,7 @@ use crate::{
 };
 
 mod arbitrum;
+mod fetcher;
 mod opstack;
 
 /// A struct that represents the Networks struct in the JSON file
@@ -38,13 +39,13 @@ enum ChainType {
 }
 
 impl FromStr for ChainType {
-    type Err = anyhow::Error;
+    type Err = eyre::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "arbitrum" => Ok(ChainType::Arbitrum),
             "opstack" => Ok(ChainType::Opstack),
-            _ => Err(anyhow::anyhow!("invalid chain ")),
+            _ => Err(eyre::eyre!("invalid chain ")),
         }
     }
 }
@@ -163,7 +164,7 @@ async fn main() -> Result<()> {
                     }
                 }
                 ChainType::Arbitrum => {
-                    let params = handle_arbitrum_events(log);
+                    let params = handle_arbitrum_events(log).await.unwrap();
                     // Insert the data into PostgreSQL
                     if let Err(err) =
                         arbitrum::insert_into_postgres(table_name.clone(), &pg_client, params).await

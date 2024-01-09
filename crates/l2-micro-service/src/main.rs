@@ -1,5 +1,6 @@
 #[macro_use]
 extern crate rocket;
+
 use eyre::Result;
 
 use rocket::data::{FromData, Outcome, ToByteUnit};
@@ -20,13 +21,31 @@ pub struct ParamsInput {
     l2_block: i32,
 }
 
-// Output for request parameters
+#[derive(Serialize, Debug)]
+enum OutputType {
+    OpStack(OPStackParamsOutput),
+    Arbitrum(ArbitrumParamsOutput),
+}
+
+// Output for request parameters of opstack
 #[derive(Serialize, Debug)]
 pub struct OPStackParamsOutput {
     l2_output_root: String,
     l2_output_index: i32,
     l2_blocknumber: i32,
     l1_timestamp: i32,
+    l1_transaction_hash: String,
+    l1_block_number: i32,
+    l1_transaction_index: i32,
+    l1_block_hash: String,
+}
+
+// Output for request parameters of arbitrum
+#[derive(Serialize, Debug)]
+pub struct ArbitrumParamsOutput {
+    l2_output_root: String,
+    l2_block_hash: String,
+    l2_block_number: i32,
     l1_transaction_hash: String,
     l1_block_number: i32,
     l1_transaction_index: i32,
@@ -77,7 +96,7 @@ async fn connect_db() -> Result<tokio_postgres::Client> {
 }
 
 /// A function that gets the output root from a block number query from postgres db
-async fn get_output_root_from_block(
+async fn handle_query_opstack(
     params: &ParamsInput,
     pg_client: &tokio_postgres::Client,
 ) -> Result<(String, i32, i32, i32, String, i32, i32, String)> {
@@ -125,32 +144,101 @@ async fn get_output_root_from_block(
     }
 }
 
+/// A function that gets the output root from a block number query from postgres db
+async fn handle_query_arbitrum(
+    params: &ParamsInput,
+    pg_client: &tokio_postgres::Client,
+) -> Result<(String, String, i32, String, i32, i32, String)> {
+    let l2_block = params.l2_block;
+    let network = &params.network;
+    let select_query = format!("SELECT l2_output_root, l2_block_hash, l2_block_number, l1_transaction_hash, l1_block_number, l1_transaction_index, l1_block_hash
+    FROM {} 
+    WHERE l2_block_number >= $1
+    ORDER BY l2_block_number ASC
+    LIMIT 1;", network);
+
+    let rows = pg_client.query(&select_query, &[&l2_block]).await?;
+    if rows.is_empty() {
+        Err(eyre::eyre!("Expected at least 1 row"))
+    } else {
+        // Get both output_root and l2_blocknum from the query result
+        let l2_output_root: String = rows[0].get(0);
+        let l2_block_hash: String = rows[0].get(1);
+        let l2_block_number: i32 = rows[0].get(2);
+        let l1_transaction_hash: String = rows[0].get(3);
+        let l1_block_number: i32 = rows[0].get(4);
+        let l1_transaction_index: i32 = rows[0].get(5);
+        let l1_block_hash: String = rows[0].get(6);
+
+        println!("L2 output root: {}", l2_output_root);
+        println!("L2 block hash: {}", l2_block_hash);
+        println!("L2 block number: {}", l2_block_number);
+        println!("L1 transaction hash: {}", l1_transaction_hash);
+        println!("L1 block number: {}", l1_block_number);
+        println!("L1 transaction index: {}", l1_transaction_index);
+        println!("L1 block hash: {}", l1_block_hash);
+
+        Ok((
+            l2_output_root,
+            l2_block_hash,
+            l2_block_number,
+            l1_transaction_hash,
+            l1_block_number,
+            l1_transaction_index,
+            l1_block_hash,
+        ))
+    }
+}
+
 #[post("/output-root", format = "json", data = "<params>")]
 async fn get_output_root(
     params: ParamsInput,
-) -> Result<Json<OPStackParamsOutput>, status::Conflict<std::string::String>> {
+) -> Result<Json<OutputType>, status::Conflict<std::string::String>> {
     let pg_client = connect_db().await.unwrap();
-    match get_output_root_from_block(&params, &pg_client).await {
-        Ok((
-            l2_output_root,
-            l2_output_index,
-            l2_blocknumber,
-            l1_timestamp,
-            l1_transaction_hash,
-            l1_block_number,
-            l1_transaction_index,
-            l1_block_hash,
-        )) => Ok(Json(OPStackParamsOutput {
-            l2_output_root,
-            l2_output_index,
-            l2_blocknumber,
-            l1_transaction_hash,
-            l1_transaction_index,
-            l1_timestamp,
-            l1_block_number,
-            l1_block_hash,
-        })),
-        Err(e) => Err(status::Conflict(Some(e.to_string()))),
+    let network: &str = &params.network;
+    match network {
+        "arbitrum_mainnet" => match handle_query_arbitrum(&params, &pg_client).await {
+            Ok((
+                l2_output_root,
+                l2_block_hash,
+                l2_block_number,
+                l1_transaction_hash,
+                l1_block_number,
+                l1_transaction_index,
+                l1_block_hash,
+            )) => Ok(Json(OutputType::Arbitrum(ArbitrumParamsOutput {
+                l2_output_root,
+                l2_block_hash,
+                l2_block_number,
+                l1_transaction_hash,
+                l1_block_number,
+                l1_transaction_index,
+                l1_block_hash,
+            }))),
+            Err(e) => Err(status::Conflict(Some(e.to_string()))),
+        },
+        _ => match handle_query_opstack(&params, &pg_client).await {
+            Ok((
+                l2_output_root,
+                l2_output_index,
+                l2_blocknumber,
+                l1_timestamp,
+                l1_transaction_hash,
+                l1_block_number,
+                l1_transaction_index,
+                l1_block_hash,
+            )) => Ok(Json(OutputType::OpStack(OPStackParamsOutput {
+                l2_output_root,
+                l2_output_index,
+                l2_blocknumber,
+                l1_transaction_hash,
+                l1_transaction_index,
+                l1_timestamp,
+                l1_block_number,
+                l1_block_hash,
+            }))),
+            Err(e) => Err(status::Conflict(Some(e.to_string()))),
+        },
     }
 }
 
