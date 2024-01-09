@@ -105,9 +105,9 @@ pub async fn handle_arbitrum_events(log: &Log) -> Result<ArbitrumParameters> {
     let l1_block_number = log.block_number.unwrap();
     let l1_transaction_index = log.transaction_index.unwrap();
     let l1_block_hash = Bytes::from(log.block_hash.unwrap().as_bytes().to_vec());
-
-    let arbitrum_fetcher =
-        Fetcher::new("https://docs-demo.arbitrum-mainnet.quiknode.pro/".to_string());
+    let arbitrum_rpc_url: &str =
+        &std::env::var("ARBITRUM_RPC_URL").expect("ARBITRUM_RPC_URL must be set.");
+    let arbitrum_fetcher = Fetcher::new(arbitrum_rpc_url.to_string());
 
     let block = arbitrum_fetcher
         .fetch_block_by_number(&l2_block_hash.to_string())
