@@ -1,10 +1,20 @@
 # L2 Indexer
 
-<!-- ![](.github/opstack_Indexer.png) -->
-
----
-
 **This repo implements an indexer whose role is to watch for L2 rollups events emitted on Ethereum and index the Output Roots into a database for querying later -- providing examples for Arbitrum, Optimism, Base, Zora chain**
+
+### Supported Networks
+
+| Type     | Network  | Network Detail | Support |
+| :------- | :------: | -------------: | ------- |
+| Arbitrum | Arbitrum |        mainnet | ✅      |
+| OP Stack |   Base   |        mainnet | ✅      |
+| OP Stack |   Base   |        sepolia | ✅      |
+| Optimism | Optimism |        mainnet | ✅      |
+| Optimism | Optimism |         goerli | ✅      |
+| OP Stack |   Zora   |        mainnet | ✅      |
+| OP Stack |   Zora   |         goerli | ✅      |
+
+| L2 | _italic_ | $1 |
 
 ### Architecture
 
@@ -50,8 +60,8 @@ http://127.0.0.1:8000/output-root
 
 ## License
 
-`opstack_indexer` is licensed under the [GNU General Public License v3.0](./LICENSE).
+`l2_indexer` is licensed under the [GNU General Public License v3.0](./LICENSE).
 
 ---
 
-Herodotus Dev Ltd - 2023
+Herodotus Dev Ltd - 2024
