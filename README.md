@@ -14,8 +14,6 @@
 | OP Stack |   Zora   |        mainnet | ✅      |
 | OP Stack |   Zora   |         goerli | ✅      |
 
-| L2 | _italic_ | $1 |
-
 ### Architecture
 
 1. **[Monitor Events](/crates/monitor_events/README.md)**: Run monitoring service that gets network spec as pm2 config. It keeps track OP Stack rollup & Arbitrum that emitted block hash preimage(Output Root) on the L1 contract.
