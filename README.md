@@ -19,7 +19,7 @@
 ### Architecture
 
 1. **[Monitor Events](/crates/monitor_events/README.md)**: Run monitoring service that gets network spec as pm2 config. It keeps track OP Stack rollup & Arbitrum that emitted block hash preimage(Output Root) on the L1 contract.
-2. **[L2 Micro Service](/crates/l2-micro-serviceREADME.md)**: Rust HTTP micro-service provides L2 information including block hash requested by block number.
+2. **[L2 Micro Service](/crates/l2-micro-service/README.md)**: Rust HTTP micro-service provides L2 information including block hash requested by block number.
 
 ### Monitoring service:
 
