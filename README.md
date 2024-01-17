@@ -1,5 +1,7 @@
 # L2 Indexer
 
+![](.github/l2indexer.png)
+
 **This repo implements an indexer whose role is to watch for L2 rollups events emitted on Ethereum and index the Output Roots into a database for querying later -- providing examples for Arbitrum, Optimism, Base, Zora chain**
 
 ### Supported Networks
