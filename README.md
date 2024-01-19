@@ -9,6 +9,7 @@
 | Type     | Network  | Network Detail | Support |
 | :------- | :------: | -------------: | ------- |
 | Arbitrum | Arbitrum |        mainnet | ✅      |
+| Arbitrum | Arbitrum |        sepolia | ✅      |
 | OP Stack |   Base   |        mainnet | ✅      |
 | OP Stack |   Base   |        sepolia | ✅      |
 | Optimism | Optimism |        mainnet | ✅      |

@@ -1,0 +1,7 @@
+{
+    "name": "arbitrum_sepolia",
+    "l1_contract": "0x65f07C7D521164a4d5DaC6eB8Fac8DA067A3B78F",
+    "block_delay": 20,
+    "poll_period_sec": 60,
+    "batch_size": 50000
+}

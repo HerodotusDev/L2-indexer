@@ -77,10 +77,7 @@ impl<'r> FromData<'r> for ParamsInput {
 }
 
 /// A function that connects to the postgres database
-async fn connect_db() -> Result<tokio_postgres::Client> {
-    dotenv().ok();
-    let db_url: &str = &std::env::var("DB_URL").expect("DB_URL must be set.");
-
+async fn connect_db(db_url: &str) -> Result<tokio_postgres::Client> {
     // Establish a PostgreSQL connection
     let (pg_client, connection) = tokio_postgres::connect(db_url, NoTls)
         .await
@@ -194,29 +191,33 @@ async fn handle_query_arbitrum(
 async fn get_output_root(
     params: ParamsInput,
 ) -> Result<Json<OutputType>, status::Conflict<std::string::String>> {
-    let pg_client = connect_db().await.unwrap();
+    dotenv().ok();
+    let db_url: &str = &std::env::var("DB_URL").expect("DB_URL must be set");
+    let pg_client = connect_db(db_url).await.unwrap();
     let network: &str = &params.network;
     match network {
-        "arbitrum_mainnet" => match handle_query_arbitrum(&params, &pg_client).await {
-            Ok((
-                l2_output_root,
-                l2_block_hash,
-                l2_block_number,
-                l1_transaction_hash,
-                l1_block_number,
-                l1_transaction_index,
-                l1_block_hash,
-            )) => Ok(Json(OutputType::Arbitrum(ArbitrumParamsOutput {
-                l2_output_root,
-                l2_block_hash,
-                l2_block_number,
-                l1_transaction_hash,
-                l1_block_number,
-                l1_transaction_index,
-                l1_block_hash,
-            }))),
-            Err(e) => Err(status::Conflict(Some(e.to_string()))),
-        },
+        "arbitrum_mainnet" | "arbitrum_sepolia" => {
+            match handle_query_arbitrum(&params, &pg_client).await {
+                Ok((
+                    l2_output_root,
+                    l2_block_hash,
+                    l2_block_number,
+                    l1_transaction_hash,
+                    l1_block_number,
+                    l1_transaction_index,
+                    l1_block_hash,
+                )) => Ok(Json(OutputType::Arbitrum(ArbitrumParamsOutput {
+                    l2_output_root,
+                    l2_block_hash,
+                    l2_block_number,
+                    l1_transaction_hash,
+                    l1_block_number,
+                    l1_transaction_index,
+                    l1_block_hash,
+                }))),
+                Err(e) => Err(status::Conflict(Some(e.to_string()))),
+            }
+        }
         _ => match handle_query_opstack(&params, &pg_client).await {
             Ok((
                 l2_output_root,
