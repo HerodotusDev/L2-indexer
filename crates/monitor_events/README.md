@@ -14,9 +14,10 @@ You need to modify the `pm2.config.js` file to run monitoring services in multip
 pm2 start pm2.config.js
 ```
 
-This will launch 7 Apps to monitor events on Arbitrum, Optimism, Zora, and Base for Goerli testnet and Mainnet respectively. If you want your own OP Stack modify the file.
+This will launch 8 Apps to monitor events on Arbitrum, Optimism, Zora, and Base for Goerli, Sepolia testnet and Mainnet respectively. If you want your own OP Stack modify the file.
 
 ```
+[PM2] App [monitor-arbitrum-sepolia] launched (1 instances)
 [PM2] App [monitor-arbitrum-mainnet] launched (1 instances)
 [PM2] App [monitor-base-goerli] launched (1 instances)
 [PM2] App [monitor-zora-goerli] launched (1 instances)

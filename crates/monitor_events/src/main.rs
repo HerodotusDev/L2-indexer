@@ -32,10 +32,56 @@ struct Networks {
     batch_size: Option<u64>,
 }
 
-/// A chain type
-enum ChainType {
+/// A chain name
+#[derive(Debug, Clone, Copy)]
+enum ChainName {
     Arbitrum,
-    Opstack,
+    Base,
+    Optimism,
+    Zora,
+}
+
+impl ToString for ChainName {
+    fn to_string(&self) -> String {
+        match self {
+            ChainName::Arbitrum => "arbitrum".to_string(),
+            ChainName::Base => "base".to_string(),
+            ChainName::Optimism => "optimism".to_string(),
+            ChainName::Zora => "zora".to_string(),
+        }
+    }
+}
+
+impl FromStr for ChainName {
+    type Err = eyre::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "arbitrum" => Ok(ChainName::Arbitrum),
+            "base" => Ok(ChainName::Base),
+            "optimism" => Ok(ChainName::Optimism),
+            "zora" => Ok(ChainName::Zora),
+            _ => Err(eyre::eyre!("invalid chain name")),
+        }
+    }
+}
+
+/// A chain name
+#[derive(Debug, Clone, Copy)]
+enum ChainType {
+    Mainnet,
+    Goerli,
+    Sepolia,
+}
+
+impl ToString for ChainType {
+    fn to_string(&self) -> String {
+        match self {
+            ChainType::Mainnet => "mainnet".to_string(),
+            ChainType::Goerli => "goerli".to_string(),
+            ChainType::Sepolia => "sepolia".to_string(),
+        }
+    }
 }
 
 impl FromStr for ChainType {
@@ -43,9 +89,10 @@ impl FromStr for ChainType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "arbitrum" => Ok(ChainType::Arbitrum),
-            "opstack" => Ok(ChainType::Opstack),
-            _ => Err(eyre::eyre!("invalid chain ")),
+            "mainnet" => Ok(ChainType::Mainnet),
+            "goerli" => Ok(ChainType::Goerli),
+            "sepolia" => Ok(ChainType::Sepolia),
+            _ => Err(eyre::eyre!("invalid chain type")),
         }
     }
 }
@@ -54,13 +101,18 @@ impl FromStr for ChainType {
 /// Parameters:
 /// * network_config: The name of the network want to get from JSON
 /// Returns:
-/// * Config struct that contains all the config data
-fn make(network_config: &str) -> Config {
-    let config_name = format!("crates/monitor_events/networks/{}", network_config);
-    Config::builder()
+/// * Networks struct that contains all the network config data
+fn get_network_config(chain_type: ChainType, chain_name: ChainName) -> Networks {
+    let config_name = format!(
+        "crates/monitor_events/networks/{}_{}",
+        chain_type.to_string(),
+        chain_name.to_string()
+    );
+    let config = Config::builder()
         .add_source(File::new(&config_name, FileFormat::Json))
         .build()
-        .unwrap()
+        .unwrap();
+    config.try_deserialize().unwrap()
 }
 
 #[tokio::main]
@@ -68,19 +120,19 @@ async fn main() -> Result<()> {
     // Settup the environment variables
     dotenv().ok();
     let rpc_url: &str = &std::env::var("RPC_URL").expect("RPC_URL must be set.");
-    let parse_type: ChainType =
-        ChainType::from_str(&std::env::var("TYPE").expect("TYPE must be set.")).unwrap();
+    let chain_type: ChainType =
+        ChainType::from_str(&std::env::var("CHAIN_TYPE").expect("TYPE must be set.")).unwrap();
+    let chain_name: ChainName =
+        ChainName::from_str(&std::env::var("CHAIN_NAME").expect("TYPE must be set.")).unwrap();
     let db_url: &str = &std::env::var("DB_URL").expect("DB_URL must be set.");
-    let network_config: &str = &std::env::var("NETWORK").expect("NETWORK must be set.");
     let provider = Provider::<Http>::try_from(rpc_url)?;
     let client = Arc::new(provider);
-    let config = make(network_config);
-    let network: Networks = config.try_deserialize().unwrap();
-    let _block_delay = network.block_delay;
-    let _poll_period_sec = network.poll_period_sec;
+    let network = get_network_config(chain_type, chain_name);
+    let block_delay = network.block_delay;
+    let poll_period_sec = network.poll_period_sec;
     let table_name = network.name;
-    let block_delay: U64 = U64([_block_delay]);
-    let poll_period_sec: Duration = time::Duration::from_secs(_poll_period_sec);
+    let block_delay: U64 = U64([block_delay]);
+    let poll_period_sec: Duration = time::Duration::from_secs(poll_period_sec);
     let address: Address = network.l1_contract.parse()?;
 
     // Set block number values to filter
@@ -97,8 +149,8 @@ async fn main() -> Result<()> {
         }
     });
 
-    let mut from_block_num = match parse_type {
-        ChainType::Opstack =>
+    let mut from_block_num = match chain_name {
+        ChainName::Optimism | ChainName::Base | ChainName::Zora =>
         // Create a table if it doesn't exist
         {
             match create_opstack_table_if_not_exists(table_name.clone(), &pg_client).await {
@@ -109,7 +161,7 @@ async fn main() -> Result<()> {
                 Err(err) => panic!("Error creating table: {:?}", err),
             }
         }
-        ChainType::Arbitrum => {
+        ChainName::Arbitrum => {
             match create_arbitrum_table_if_not_exists(table_name.clone(), &pg_client).await {
                 Ok(table_result) => match table_result {
                     Some(max_blocknumber) => (max_blocknumber + 1).into(),
@@ -120,13 +172,13 @@ async fn main() -> Result<()> {
         }
     };
 
-    let mut filter = match parse_type {
-        ChainType::Opstack => Filter::new()
+    let mut filter = match chain_name {
+        ChainName::Optimism | ChainName::Base | ChainName::Zora => Filter::new()
             .address(address)
             .event("OutputProposed(bytes32,uint256,uint256,uint256)")
             .from_block(from_block_num)
             .to_block(new_block_num),
-        ChainType::Arbitrum => Filter::new()
+        ChainName::Arbitrum => Filter::new()
             .address(address)
             .event("SendRootUpdated(bytes32,bytes32)")
             .from_block(from_block_num)
@@ -153,8 +205,8 @@ async fn main() -> Result<()> {
         );
 
         for log in logs.iter() {
-            match parse_type {
-                ChainType::Opstack => {
+            match chain_name {
+                ChainName::Optimism | ChainName::Base | ChainName::Zora => {
                     let params = handle_opstack_events(log);
                     // Insert the data into PostgreSQL
                     if let Err(err) =
@@ -163,8 +215,8 @@ async fn main() -> Result<()> {
                         eprintln!("Error inserting data into PostgreSQL: {:?}", err);
                     }
                 }
-                ChainType::Arbitrum => {
-                    let params = handle_arbitrum_events(log).await.unwrap();
+                ChainName::Arbitrum => {
+                    let params = handle_arbitrum_events(log, &chain_type).await.unwrap();
                     // Insert the data into PostgreSQL
                     if let Err(err) =
                         arbitrum::insert_into_postgres(table_name.clone(), &pg_client, params).await

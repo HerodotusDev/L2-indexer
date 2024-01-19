@@ -77,10 +77,7 @@ impl<'r> FromData<'r> for ParamsInput {
 }
 
 /// A function that connects to the postgres database
-async fn connect_db() -> Result<tokio_postgres::Client> {
-    dotenv().ok();
-    let db_url: &str = &std::env::var("DB_URL").expect("DB_URL must be set.");
-
+async fn connect_db(db_url: &str) -> Result<tokio_postgres::Client> {
     // Establish a PostgreSQL connection
     let (pg_client, connection) = tokio_postgres::connect(db_url, NoTls)
         .await
@@ -194,7 +191,9 @@ async fn handle_query_arbitrum(
 async fn get_output_root(
     params: ParamsInput,
 ) -> Result<Json<OutputType>, status::Conflict<std::string::String>> {
-    let pg_client = connect_db().await.unwrap();
+    dotenv().ok();
+    let db_url: &str = &std::env::var("DB_URL").expect("DB_URL must be set");
+    let pg_client = connect_db(db_url).await.unwrap();
     let network: &str = &params.network;
     match network {
         "arbitrum_mainnet" => match handle_query_arbitrum(&params, &pg_client).await {
