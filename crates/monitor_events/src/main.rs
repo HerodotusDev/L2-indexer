@@ -105,8 +105,8 @@ impl FromStr for ChainType {
 fn get_network_config(chain_type: ChainType, chain_name: ChainName) -> Networks {
     let config_name = format!(
         "crates/monitor_events/networks/{}_{}",
-        chain_type.to_string(),
-        chain_name.to_string()
+        chain_name.to_string(),
+        chain_type.to_string()
     );
     let config = Config::builder()
         .add_source(File::new(&config_name, FileFormat::Json))
