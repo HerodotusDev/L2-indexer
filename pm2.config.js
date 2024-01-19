@@ -10,6 +10,15 @@ module.exports = {
         }
       },
       {
+        name: 'monitor-base-sepolia',
+        script: 'target/release/monitor-events',
+        env: {
+          CHAIN_TYPE: 'sepolia',
+          CHAIN_NAME: 'base',
+          RPC_URL: 'https://ethereum-sepolia.publicnode.com'
+        }
+      },
+      {
         name: 'monitor-base-goerli',
         script: 'target/release/monitor-events',
         env: {
