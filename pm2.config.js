@@ -29,16 +29,16 @@ module.exports = {
       //     DB_URL:'postgresql://postgres:password@localhost:5432/l2indexer',
       //   }
       // },
-      // {
-      //   name: 'monitor-optimism-sepolia',
-      //   script: 'target/release/monitor-events',
-      //   env: {
-      //     CHAIN_TYPE: 'sepolia',
-      //     CHAIN_NAME: 'optimism',
-      //     RPC_URL: 'https://ethereum-sepolia.publicnode.com',  
-      //     DB_URL:'postgresql://postgres:password@localhost:5432/l2indexer',
-      //   }
-      // },
+      {
+        name: 'monitor-optimism-sepolia',
+        script: 'target/release/monitor-events',
+        env: {
+          CHAIN_TYPE: 'sepolia',
+          CHAIN_NAME: 'optimism',
+          RPC_URL: 'https://ethereum-sepolia.publicnode.com',  
+          DB_URL:'postgresql://postgres:password@localhost:5432/l2indexer',
+        }
+      },
       // TODO: Zora docs haven't update sepolia `L2OutputOracle` address
       // {
       //   name: 'monitor-zora-sepolia',
@@ -60,16 +60,16 @@ module.exports = {
       //     DB_URL:'postgresql://postgres:password@localhost:5432/l2indexer',
       //   }
       // },
-      {
-        name: 'monitor-optimism-mainnet',
-        script: 'target/release/monitor-events',
-        env: {
-          CHAIN_TYPE: 'mainnet',
-          CHAIN_NAME: 'optimism',
-          RPC_URL: 'https://ethereum.publicnode.com',
-          DB_URL:'postgresql://postgres:password@localhost:5432/l2indexer',
-        }
-      },
+      // {
+      //   name: 'monitor-optimism-mainnet',
+      //   script: 'target/release/monitor-events',
+      //   env: {
+      //     CHAIN_TYPE: 'mainnet',
+      //     CHAIN_NAME: 'optimism',
+      //     RPC_URL: 'https://ethereum.publicnode.com',
+      //     DB_URL:'postgresql://postgres:password@localhost:5432/l2indexer',
+      //   }
+      // },
       // {
       //   name: 'monitor-zora-mainnet',
       //   script: 'target/release/monitor-events',
