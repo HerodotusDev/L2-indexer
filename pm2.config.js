@@ -66,7 +66,8 @@ module.exports = {
         env: {
           CHAIN_TYPE: 'mainnet',
           CHAIN_NAME: 'optimism',
-          RPC_URL: 'https://ethereum.publicnode.com'
+          RPC_URL: 'https://ethereum.publicnode.com',
+          DB_URL:'postgresql://postgres:password@localhost:5432/l2indexer',
         }
       },
       {
