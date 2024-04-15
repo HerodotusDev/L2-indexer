@@ -28,15 +28,23 @@ pub async fn create_opstack_table_if_not_exists(
     let exist: bool = rows[0].get(0);
     println!("Table exist : {exist}");
     if exist {
+        // Query the maximum l1_block_number
         let create_table_query = format!(
             "SELECT MAX(l1_block_number) as MaxBlock from {}",
             table_name
         );
         let rows = client.query(&create_table_query, &[]).await?;
 
-        let max_blocknum: i32 = rows[0].get(0);
-        println!("max_blocknum : {max_blocknum}");
-        Ok(Some(max_blocknum))
+        // Handle possible NULL result for max l1_block_number
+        let max_blocknum: Option<i32> = rows[0].try_get(0)?;
+
+        if let Some(max_num) = max_blocknum {
+            println!("max_blocknum: {max_num}");
+            Ok(Some(max_num))
+        } else {
+            println!("No entries in the table, hence no maximum block number.");
+            Ok(None)
+        }
     } else {
         let create_table_query = format!(
             "CREATE TABLE IF NOT EXISTS {} ( 
