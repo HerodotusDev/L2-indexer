@@ -11,12 +11,10 @@
 | Arbitrum | Arbitrum |        mainnet | ✅      |
 | Arbitrum | Arbitrum |        sepolia | ✅      |
 | OP Stack |   Base   |        mainnet | ✅      |
-| OP Stack |   Base   |         goerli | ✅      |
 | OP Stack |   Base   |        sepolia | ✅      |
 | Optimism | Optimism |        mainnet | ✅      |
-| Optimism | Optimism |         goerli | ✅      |
+| Optimism | Optimism |        sepolia | ✅      |
 | OP Stack |   Zora   |        mainnet | ✅      |
-| OP Stack |   Zora   |         goerli | ✅      |
 
 ### Architecture
 

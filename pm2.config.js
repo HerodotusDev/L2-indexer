@@ -19,32 +19,25 @@ module.exports = {
         }
       },
       {
-        name: 'monitor-base-goerli',
+        name: 'monitor-optimism-sepolia',
         script: 'target/release/monitor-events',
         env: {
-          CHAIN_TYPE: 'goerli',
-          CHAIN_NAME: 'base',
-          RPC_URL: 'https://ethereum-goerli.publicnode.com'
-        }
-      },
-      {
-        name: 'monitor-zora-goerli',
-        script: 'target/release/monitor-events',
-        env: {
-          CHAIN_TYPE: 'goerli',
-          CHAIN_NAME: 'zora',
-          RPC_URL: 'https://ethereum-goerli.publicnode.com'
-        }
-      },
-      {
-        name: 'monitor-optimism-goerli',
-        script: 'target/release/monitor-events',
-        env: {
-          CHAIN_TYPE: 'goerli',
+          CHAIN_TYPE: 'sepolia',
           CHAIN_NAME: 'optimism',
-          RPC_URL: 'https://ethereum-goerli.publicnode.com'
+          RPC_URL: 'https://ethereum-sepolia.publicnode.com'
         }
       },
+      // TODO: Zora docs haven't update sepolia `L2OutputOracle` address
+      // {
+      //   name: 'monitor-zora-sepolia',
+      //   script: 'target/release/monitor-events',
+      //   env: {
+      //     CHAIN_TYPE: 'sepolia',
+      //     CHAIN_NAME: 'zora',
+      //     RPC_URL: 'https://ethereum-sepolia.publicnode.com'
+      //   }
+      // },
+     
       {
         name: 'monitor-base-mainnet',
         script: 'target/release/monitor-events',
