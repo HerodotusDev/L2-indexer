@@ -1,4 +1,6 @@
+use ::common::{ChainName, ChainType};
 use arbitrum::create_arbitrum_table_if_not_exists;
+use common::Network;
 use config::{Config, File, FileFormat};
 use dotenv::dotenv;
 use ethers::prelude::*;
@@ -30,81 +32,19 @@ struct Networks {
     batch_size: Option<u64>,
 }
 
-/// A chain name
-#[derive(Debug, Clone, Copy)]
-enum ChainName {
-    Arbitrum,
-    Base,
-    Optimism,
-    Zora,
-}
-
-impl ToString for ChainName {
-    fn to_string(&self) -> String {
-        match self {
-            ChainName::Arbitrum => "arbitrum".to_string(),
-            ChainName::Base => "base".to_string(),
-            ChainName::Optimism => "optimism".to_string(),
-            ChainName::Zora => "zora".to_string(),
-        }
-    }
-}
-
-impl FromStr for ChainName {
-    type Err = eyre::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "arbitrum" => Ok(ChainName::Arbitrum),
-            "base" => Ok(ChainName::Base),
-            "optimism" => Ok(ChainName::Optimism),
-            "zora" => Ok(ChainName::Zora),
-            _ => Err(eyre::eyre!("invalid chain name")),
-        }
-    }
-}
-
-/// A chain name
-#[derive(Debug, Clone, Copy)]
-enum ChainType {
-    Mainnet,
-    Goerli,
-    Sepolia,
-}
-
-impl ToString for ChainType {
-    fn to_string(&self) -> String {
-        match self {
-            ChainType::Mainnet => "mainnet".to_string(),
-            ChainType::Goerli => "goerli".to_string(),
-            ChainType::Sepolia => "sepolia".to_string(),
-        }
-    }
-}
-
-impl FromStr for ChainType {
-    type Err = eyre::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "mainnet" => Ok(ChainType::Mainnet),
-            "goerli" => Ok(ChainType::Goerli),
-            "sepolia" => Ok(ChainType::Sepolia),
-            _ => Err(eyre::eyre!("invalid chain type")),
-        }
-    }
-}
-
 /// A builder that gets config from JSON and returns Config.
 /// Parameters:
 /// * network_config: The name of the network want to get from JSON
 /// Returns:
 /// * Networks struct that contains all the network config data
 fn get_network_config(chain_type: ChainType, chain_name: ChainName) -> Networks {
+    let network = Network {
+        chain_name,
+        chain_type,
+    };
     let config_name = format!(
-        "crates/monitor_events/networks/{}_{}",
-        chain_name.to_string(),
-        chain_type.to_string()
+        "crates/monitor_events/networks/{}",
+        network.to_string().to_lowercase()
     );
     let config = Config::builder()
         .add_source(File::new(&config_name, FileFormat::Json))

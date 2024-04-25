@@ -1,9 +1,12 @@
 #[macro_use]
 extern crate rocket;
 
+use std::str::FromStr;
+
+use common::Network;
 use dotenv::dotenv;
 use eyre::Result;
-use rocket::form::{self};
+use rocket::form::{self, FromForm};
 use rocket::response::status;
 use rocket::serde::json::Json;
 use serde::Serialize;
@@ -68,13 +71,15 @@ async fn handle_query_opstack(
     params: &ParamsInput,
     pg_client: &tokio_postgres::Client,
 ) -> Result<(String, i32, i32, i32, String, i32, i32, String)> {
-    let l2_block = params.l2_block;
-    let network = &params.network;
+    let ParamsInput { l2_block, network } = params;
+    let network = Network::from_str(network)
+        .map_err(|e| eyre::eyre!("Invalid Network: {:?}", e.to_string()))?;
+
     let select_query = format!("SELECT l2_output_root, l2_output_index, l2_block_number, l1_timestamp, l1_transaction_hash, l1_block_number, l1_transaction_index, l1_block_hash
     FROM {} 
     WHERE l2_block_number >= $1
     ORDER BY l2_block_number ASC
-    LIMIT 1;", network);
+    LIMIT 1;", network.to_string());
 
     let rows = pg_client.query(&select_query, &[&l2_block]).await?;
     if rows.is_empty() {

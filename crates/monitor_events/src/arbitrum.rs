@@ -1,4 +1,5 @@
-use crate::{fetcher::Fetcher, ChainType};
+use crate::fetcher::Fetcher;
+use ::common::ChainType;
 use ethers::prelude::*;
 use eyre::Result;
 
