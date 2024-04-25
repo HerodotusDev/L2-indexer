@@ -1,21 +1,16 @@
 #[macro_use]
 extern crate rocket;
 
+use dotenv::dotenv;
 use eyre::Result;
-
-use rocket::data::{FromData, Outcome, ToByteUnit};
-use rocket::http::Status;
+use rocket::form::{self};
 use rocket::response::status;
 use rocket::serde::json::Json;
-
-use dotenv::dotenv;
-use rocket::tokio::io::AsyncReadExt;
-use rocket::{Data, Request};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use tokio_postgres::NoTls;
 
 // Input for request parameters
-#[derive(Deserialize, Debug)]
+#[derive(FromForm, Debug)]
 pub struct ParamsInput {
     network: String,
     l2_block: i32,
@@ -32,7 +27,7 @@ enum OutputType {
 pub struct OPStackParamsOutput {
     l2_output_root: String,
     l2_output_index: i32,
-    l2_blocknumber: i32,
+    l2_block_number: i32,
     l1_timestamp: i32,
     l1_transaction_hash: String,
     l1_block_number: i32,
@@ -50,30 +45,6 @@ pub struct ArbitrumParamsOutput {
     l1_block_number: i32,
     l1_transaction_index: i32,
     l1_block_hash: String,
-}
-
-#[rocket::async_trait]
-impl<'r> FromData<'r> for ParamsInput {
-    type Error = std::io::Error;
-
-    async fn from_data(_req: &'r Request<'_>, data: Data<'r>) -> rocket::data::Outcome<'r, Self> {
-        let mut string = String::new();
-        if let Err(e) = data.open(512.kilobytes()).read_to_string(&mut string).await {
-            return Outcome::Failure((Status::InternalServerError, e));
-        }
-
-        let params: ParamsInput = match serde_json::from_str(&string) {
-            Ok(params) => params,
-            Err(e) => {
-                return Outcome::Failure((
-                    Status::UnprocessableEntity,
-                    std::io::Error::new(std::io::ErrorKind::InvalidData, e),
-                ))
-            }
-        };
-
-        Outcome::Success(params)
-    }
 }
 
 /// A function that connects to the postgres database
@@ -99,10 +70,10 @@ async fn handle_query_opstack(
 ) -> Result<(String, i32, i32, i32, String, i32, i32, String)> {
     let l2_block = params.l2_block;
     let network = &params.network;
-    let select_query = format!("SELECT l2_output_root, l2_output_index, l2_blocknumber, l1_timestamp, l1_transaction_hash, l1_block_number, l1_transaction_index, l1_block_hash
+    let select_query = format!("SELECT l2_output_root, l2_output_index, l2_block_number, l1_timestamp, l1_transaction_hash, l1_block_number, l1_transaction_index, l1_block_hash
     FROM {} 
-    WHERE l2_blocknumber >= $1
-    ORDER BY l2_blocknumber ASC
+    WHERE l2_block_number >= $1
+    ORDER BY l2_block_number ASC
     LIMIT 1;", network);
 
     let rows = pg_client.query(&select_query, &[&l2_block]).await?;
@@ -112,7 +83,7 @@ async fn handle_query_opstack(
         // Get both output_root and l2_blocknum from the query result
         let l2_output_root: String = rows[0].get(0);
         let l2_output_index: i32 = rows[0].get(1);
-        let l2_blocknumber: i32 = rows[0].get(2);
+        let l2_block_number: i32 = rows[0].get(2);
         let l1_timestamp: i32 = rows[0].get(3);
         let l1_transaction_hash: String = rows[0].get(4);
         let l1_block_number: i32 = rows[0].get(5);
@@ -121,7 +92,7 @@ async fn handle_query_opstack(
 
         println!("L2 output root: {}", l2_output_root);
         println!("L2 output index: {}", l2_output_index);
-        println!("L2 block number: {}", l2_blocknumber);
+        println!("L2 block number: {}", l2_block_number);
         println!("L1 timestamp: {}", l1_timestamp);
         println!("L1 transaction hash: {}", l1_transaction_hash);
         println!("L1 block number: {}", l1_block_number);
@@ -131,7 +102,7 @@ async fn handle_query_opstack(
         Ok((
             l2_output_root,
             l2_output_index,
-            l2_blocknumber,
+            l2_block_number,
             l1_timestamp,
             l1_transaction_hash,
             l1_block_number,
@@ -187,10 +158,11 @@ async fn handle_query_arbitrum(
     }
 }
 
-#[post("/output-root", format = "json", data = "<params>")]
+#[get("/output-root?<query..>")]
 async fn get_output_root(
-    params: ParamsInput,
+    query: form::Result<'_, ParamsInput>,
 ) -> Result<Json<OutputType>, status::Conflict<std::string::String>> {
+    let params = query.map_err(|e| status::Conflict(e.to_string()))?;
     dotenv().ok();
     let db_url: &str = &std::env::var("DB_URL").expect("DB_URL must be set");
     let pg_client = connect_db(db_url).await.unwrap();
@@ -215,14 +187,14 @@ async fn get_output_root(
                     l1_transaction_index,
                     l1_block_hash,
                 }))),
-                Err(e) => Err(status::Conflict(Some(e.to_string()))),
+                Err(e) => Err(status::Conflict(e.to_string())),
             }
         }
         _ => match handle_query_opstack(&params, &pg_client).await {
             Ok((
                 l2_output_root,
                 l2_output_index,
-                l2_blocknumber,
+                l2_block_number,
                 l1_timestamp,
                 l1_transaction_hash,
                 l1_block_number,
@@ -231,14 +203,14 @@ async fn get_output_root(
             )) => Ok(Json(OutputType::OpStack(OPStackParamsOutput {
                 l2_output_root,
                 l2_output_index,
-                l2_blocknumber,
+                l2_block_number,
                 l1_transaction_hash,
                 l1_transaction_index,
                 l1_timestamp,
                 l1_block_number,
                 l1_block_hash,
             }))),
-            Err(e) => Err(status::Conflict(Some(e.to_string()))),
+            Err(e) => Err(status::Conflict(e.to_string())),
         },
     }
 }

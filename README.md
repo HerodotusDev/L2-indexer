@@ -7,14 +7,14 @@
 ### Supported Networks
 
 | Type     | Network  | Network Detail | Support |
-| :------- | :------: | -------------: | ------- |
-| Arbitrum | Arbitrum |        mainnet | ✅      |
-| Arbitrum | Arbitrum |        sepolia | ✅      |
-| OP Stack |   Base   |        mainnet | ✅      |
-| OP Stack |   Base   |        sepolia | ✅      |
-| Optimism | Optimism |        mainnet | ✅      |
-| Optimism | Optimism |        sepolia | ✅      |
-| OP Stack |   Zora   |        mainnet | ✅      |
+| :------- | :------: | -------------: | :-----: |
+| Arbitrum | Arbitrum |        mainnet |   ✅    |
+| Arbitrum | Arbitrum |        sepolia |   ✅    |
+| OP Stack |   Base   |        mainnet |   ✅    |
+| OP Stack |   Base   |        sepolia |   ✅    |
+| Optimism | Optimism |        mainnet |   ✅    |
+| Optimism | Optimism |        sepolia |   ✅    |
+| OP Stack |   Zora   |        mainnet |   ✅    |
 
 ### Architecture
 
@@ -43,19 +43,39 @@ from 18276753 to 18276757, 0 pools found!
 Request with `l2_block_number`, `network_name` return `l2_output_root` and `l2_block_number`. In this case, we can query the database directly:
 
 ```sql
-  SELECT l2_output_root, l2_output_index, l2_blocknumber, l1_timestamp, l1_transaction_hash, l1_block_number, l1_transaction_index, l1_block_hash
+  SELECT l2_output_root, l2_output_index, l2_block_number, l1_timestamp, l1_transaction_hash, l1_block_number, l1_transaction_index, l1_block_hash
             FROM optimism
-            WHERE l2_blocknumber >= $1
-            ORDER BY l2_blocknumber ASC
+            WHERE l2_block_number >= $1
+            ORDER BY l2_block_number ASC
             LIMIT 1;
 ```
 
 So that it return the nearest, but newer blocknumber from what was requested.
 
-Endpoint
+Endpoint:
 
+[http://127.0.0.1:8000/output-root?network=optimism_sepolia&l2_block=1](http://127.0.0.1:8000/output-root?network=optimism_sepolia&l2_block=1)
+
+## How to run
+
+1. Use the setup script
+
+```sh
+./setup.sh
 ```
-http://127.0.0.1:8000/output-root
+
+2. When developing rebuild and restart the services
+
+```sh
+./restart.sh
+```
+
+3. Check the logs, start, stop services manually, etc. - use `pm2`
+
+4. Cleanup everything
+
+```sh
+./cleanup.sh
 ```
 
 ## License

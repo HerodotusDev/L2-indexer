@@ -13,10 +13,7 @@ use std::{
 };
 use tokio_postgres::NoTls;
 
-use crate::{
-    arbitrum::handle_arbitrum_events,
-    opstack::{handle_opstack_events, insert_into_postgres},
-};
+use crate::{arbitrum::handle_arbitrum_events, opstack::handle_opstack_events};
 
 mod arbitrum;
 mod fetcher;
@@ -27,6 +24,7 @@ mod opstack;
 struct Networks {
     name: String,
     l1_contract: String,
+    l1_contract_deployment_block: u64,
     block_delay: u64,
     poll_period_sec: u64,
     batch_size: Option<u64>,
@@ -150,40 +148,31 @@ async fn main() -> Result<()> {
     });
 
     let mut from_block_num = match chain_name {
-        ChainName::Optimism | ChainName::Base | ChainName::Zora =>
-        // Create a table if it doesn't exist
-        {
-            match create_opstack_table_if_not_exists(table_name.clone(), &pg_client).await {
-                Ok(table_result) => match table_result {
-                    Some(max_blocknumber) => (max_blocknumber + 1).into(),
-                    None => U64([0]),
-                },
-                Err(err) => panic!("Error creating table: {:?}", err),
-            }
+        ChainName::Optimism | ChainName::Base | ChainName::Zora => {
+            create_opstack_table_if_not_exists(table_name.clone(), &pg_client).await
         }
         ChainName::Arbitrum => {
-            match create_arbitrum_table_if_not_exists(table_name.clone(), &pg_client).await {
-                Ok(table_result) => match table_result {
-                    Some(max_blocknumber) => (max_blocknumber + 1).into(),
-                    None => U64([0]),
-                },
-                Err(err) => panic!("Error creating table: {:?}", err),
-            }
+            create_arbitrum_table_if_not_exists(table_name.clone(), &pg_client).await
         }
+    }
+    .expect("Error creating table")
+    .map_or(
+        U64([network.l1_contract_deployment_block]),
+        |max_blocknumber| (max_blocknumber + 1).into(),
+    );
+
+    let event_signature = match chain_name {
+        ChainName::Optimism | ChainName::Base | ChainName::Zora => {
+            "OutputProposed(bytes32,uint256,uint256,uint256)"
+        }
+        ChainName::Arbitrum => "SendRootUpdated(bytes32,bytes32)",
     };
 
-    let mut filter = match chain_name {
-        ChainName::Optimism | ChainName::Base | ChainName::Zora => Filter::new()
-            .address(address)
-            .event("OutputProposed(bytes32,uint256,uint256,uint256)")
-            .from_block(from_block_num)
-            .to_block(new_block_num),
-        ChainName::Arbitrum => Filter::new()
-            .address(address)
-            .event("SendRootUpdated(bytes32,bytes32)")
-            .from_block(from_block_num)
-            .to_block(new_block_num),
-    };
+    let mut filter = Filter::new()
+        .event(event_signature)
+        .address(address)
+        .from_block(from_block_num)
+        .to_block(new_block_num);
 
     // Loop to get the logs with time gap and with batch
     loop {
@@ -210,7 +199,7 @@ async fn main() -> Result<()> {
                     let params = handle_opstack_events(log);
                     // Insert the data into PostgreSQL
                     if let Err(err) =
-                        insert_into_postgres(table_name.clone(), &pg_client, params).await
+                        opstack::insert_into_postgres(table_name.clone(), &pg_client, params).await
                     {
                         eprintln!("Error inserting data into PostgreSQL: {:?}", err);
                     }

@@ -7,8 +7,8 @@ edition = "2021"
 members = ["crates/monitor_events", "crates/l2-micro-service"]
 
 [workspace.dependencies]
-config = "0.13.1"
-rocket = { version = "=0.5.0-rc.3", features = ["json"] }
+config = "0.14.0"
+rocket = { version = "0.5.0", features = ["json"] }
 tokio-postgres = "0.7.10"
 dotenv = "0.15.0"
 eyre = "0.6"
@@ -26,4 +26,4 @@ ethers-contract-derive = "2.0.10"
 ethers-core = "2.0.10"
 ethers-contract = "2.0.10"
 ethers-providers = "2.0.10"
-reqwest = "0.11.22"
+reqwest = { version = "0.12.4", features = ["json"] }

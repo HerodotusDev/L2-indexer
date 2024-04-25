@@ -30,7 +30,7 @@ Response :
   "OpStack": {
     "l2_output_root": "0x051d3a95aef15113b3460d05eab6e4cb6c18d7161fcdcd1fcaa006d6293646f4",
     "l2_output_index": 1,
-    "l2_blocknumber": 105238663,
+    "l2_block_number": 105238663,
     "l1_timestamp": 1686077699,
     "l1_transaction_hash": "0x8714995c6402eb33047989223371bed0f4ae2277c0e789ffe2ca38c02fcb48fd",
     "l1_block_number": 17423308,

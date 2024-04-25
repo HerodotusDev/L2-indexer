@@ -49,15 +49,15 @@ pub async fn create_arbitrum_table_if_not_exists(
     } else {
         let create_table_query = format!(
             "CREATE TABLE IF NOT EXISTS {} ( 
-            id              SERIAL PRIMARY KEY,
-            l2_output_root     VARCHAR NOT NULL,
-            l2_block_hash   VARCHAR NOT NULL,
-            l2_block_number  INTEGER NOT NULL,
-            l1_transaction_hash    VARCHAR NOT NULL,
-            l1_block_number    INTEGER NOT NULL,
-            l1_transaction_index    INTEGER NOT NULL,
-            l1_block_hash     VARCHAR NOT NULL
-        )",
+                id                      SERIAL PRIMARY KEY,
+                l2_output_root          VARCHAR NOT NULL,
+                l2_block_hash           VARCHAR NOT NULL,
+                l2_block_number         INTEGER NOT NULL,
+                l1_transaction_hash     VARCHAR NOT NULL,
+                l1_block_number         INTEGER NOT NULL,
+                l1_transaction_index    INTEGER NOT NULL,
+                l1_block_hash           VARCHAR NOT NULL
+            )",
             table_name
         );
         client.execute(&create_table_query, &[]).await?;

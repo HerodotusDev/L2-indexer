@@ -1,4 +1,4 @@
-use eyre::{eyre, Error, Result};
+use eyre::{eyre, Error, OptionExt, Result};
 
 use reqwest::{header, Client};
 use serde::{Deserialize, Serialize};
@@ -70,7 +70,7 @@ impl Fetcher {
 
         let evm_block_header_from_rpc_result: EvmBlockHeaderFromRpc = body
             .get("result")
-            .ok_or_else(|| eyre!("Result field not found"))
+            .ok_or_eyre("Result field not found")
             .and_then(|result| {
                 from_value::<EvmBlockHeaderFromRpc>(result.clone()).map_err(Error::msg)
             })?;

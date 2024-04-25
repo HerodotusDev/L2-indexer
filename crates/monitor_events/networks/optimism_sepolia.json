@@ -3,5 +3,6 @@
   "l1_contract": "0x90E9c4f8a994a250F6aEfd61CAFb4F2e895D458F",
   "block_delay": 20,
   "poll_period_sec": 60,
-  "batch_size": 50000
+  "batch_size": 50000,
+  "l1_contract_deployment_block": 4071248
 }
