@@ -34,7 +34,7 @@ workspace = false
 description = "Set up the L2 indexer environment."
 script = '''
 echo "Setting up the environment..."
-./script/setup.sh
+./scripts/setup.sh
 '''
 
 [tasks.restart]
@@ -42,7 +42,7 @@ workspace = false
 description = "Restart the L2 indexer."
 script = '''
 echo "Restart the program..."
-./script/compile.sh
+./scripts/compile.sh
 '''
 
 [tasks.cleanup]
@@ -50,5 +50,5 @@ workspace = false
 description = "Clean up the setup by running the cleanup script."
 script = '''
 echo "Cleaning up..."
-./script/cleanup.sh
+./scripts/cleanup.sh
 '''
