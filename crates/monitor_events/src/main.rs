@@ -1,12 +1,9 @@
-use ::common::{ChainName, ChainType};
+use ::common::{get_network_config, ChainName, ChainType};
 use arbitrum::create_arbitrum_table_if_not_exists;
-use common::Network;
-use config::{Config, File, FileFormat};
 use dotenv::dotenv;
 use ethers::prelude::*;
 use eyre::Result;
 use opstack::create_opstack_table_if_not_exists;
-use serde::Deserialize;
 use std::{
     str::FromStr,
     sync::Arc,
@@ -20,38 +17,6 @@ use crate::{arbitrum::handle_arbitrum_events, opstack::handle_opstack_events};
 mod arbitrum;
 mod fetcher;
 mod opstack;
-
-/// A struct that represents the Networks struct in the JSON file
-#[derive(Debug, Deserialize)]
-struct Networks {
-    name: String,
-    l1_contract: String,
-    l1_contract_deployment_block: u64,
-    block_delay: u64,
-    poll_period_sec: u64,
-    batch_size: Option<u64>,
-}
-
-/// A builder that gets config from JSON and returns Config.
-/// Parameters:
-/// * network_config: The name of the network want to get from JSON
-/// Returns:
-/// * Networks struct that contains all the network config data
-fn get_network_config(chain_type: ChainType, chain_name: ChainName) -> Networks {
-    let network = Network {
-        chain_name,
-        chain_type,
-    };
-    let config_name = format!(
-        "crates/monitor_events/networks/{}",
-        network.to_string().to_lowercase()
-    );
-    let config = Config::builder()
-        .add_source(File::new(&config_name, FileFormat::Json))
-        .build()
-        .unwrap();
-    config.try_deserialize().unwrap()
-}
 
 #[tokio::main]
 async fn main() -> Result<()> {

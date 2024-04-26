@@ -1,3 +1,5 @@
+use config::{Config, File, FileFormat};
+use serde::Deserialize;
 use std::str::FromStr;
 
 /// A chain name
@@ -92,4 +94,36 @@ impl FromStr for Network {
             chain_type,
         })
     }
+}
+
+/// A struct that represents the Networks struct in the JSON file
+#[derive(Debug, Deserialize)]
+pub struct Networks {
+    pub name: String,
+    pub l1_contract: String,
+    pub l1_contract_deployment_block: u64,
+    pub block_delay: u64,
+    pub poll_period_sec: u64,
+    pub batch_size: Option<u64>,
+}
+
+/// A builder that gets config from JSON and returns Config.
+/// Parameters:
+/// * network_config: The name of the network want to get from JSON
+/// Returns:
+/// * Networks struct that contains all the network config data
+pub fn get_network_config(chain_type: ChainType, chain_name: ChainName) -> Networks {
+    let network = Network {
+        chain_name,
+        chain_type,
+    };
+    let config_name = format!(
+        "crates/monitor_events/networks/{}",
+        network.to_string().to_lowercase()
+    );
+    let config = Config::builder()
+        .add_source(File::new(&config_name, FileFormat::Json))
+        .build()
+        .unwrap();
+    config.try_deserialize().unwrap()
 }
