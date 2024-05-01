@@ -48,16 +48,16 @@ pub async fn create_opstack_table_if_not_exists(
     } else {
         let create_table_query = format!(
             "CREATE TABLE IF NOT EXISTS {} ( 
-            id              SERIAL PRIMARY KEY,
-            l2_output_root     VARCHAR NOT NULL,
-            l2_output_index INTEGER NOT NULL,
-            l2_blocknumber  INTEGER NOT NULL,
-            l1_timestamp    INTEGER NOT NULL,
-            l1_transaction_hash    VARCHAR NOT NULL,
-            l1_block_number    INTEGER NOT NULL,
-            l1_transaction_index    INTEGER NOT NULL,
-            l1_block_hash     VARCHAR NOT NULL
-        )",
+                id                      SERIAL PRIMARY KEY,
+                l2_output_root          VARCHAR NOT NULL,
+                l2_output_index         INTEGER NOT NULL,
+                l2_block_number         INTEGER NOT NULL,
+                l1_timestamp            INTEGER NOT NULL,
+                l1_transaction_hash     VARCHAR NOT NULL,
+                l1_block_number         INTEGER NOT NULL,
+                l1_transaction_index    INTEGER NOT NULL,
+                l1_block_hash           VARCHAR NOT NULL
+            )",
             table_name
         );
         client.execute(&create_table_query, &[]).await?;
@@ -85,7 +85,7 @@ pub async fn insert_into_postgres(
     client: &tokio_postgres::Client,
     params: OPStackParameters,
 ) -> Result<(), tokio_postgres::Error> {
-    let insert_query = format!("INSERT INTO {} (l2_output_root, l2_output_index, l2_blocknumber, l1_timestamp, l1_transaction_hash, l1_block_number, l1_transaction_index, l1_block_hash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", table_name);
+    let insert_query = format!("INSERT INTO {} (l2_output_root, l2_output_index, l2_block_number, l1_timestamp, l1_transaction_hash, l1_block_number, l1_transaction_index, l1_block_hash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", table_name);
     client
         .execute(
             &insert_query,
@@ -114,9 +114,10 @@ pub fn handle_opstack_events(log: &Log) -> OPStackParameters {
     let l1_block_number = log.block_number.unwrap();
     let l1_transaction_index = log.transaction_index.unwrap();
     let l1_block_hash = Bytes::from(log.block_hash.unwrap().as_bytes().to_vec());
+
     println!(
-                "output_root = {l2_output_root}, l2OutputIndex = {l2_output_index}, l2BlockNumber = {l2_block_number}, l1Blocknumber = {l1_block_number}, l1Timestamp = {l1_timestamp}, l1_transaction_hash={l1_transaction_hash}, l1_transaction_index={l1_transaction_index}, L1_block_hash={l1_block_hash}",
-            );
+        "output_root = {l2_output_root}, l2OutputIndex = {l2_output_index}, l2BlockNumber = {l2_block_number}, l1Blocknumber = {l1_block_number}, l1Timestamp = {l1_timestamp}, l1_transaction_hash={l1_transaction_hash}, l1_transaction_index={l1_transaction_index}, L1_block_hash={l1_block_hash}"
+    );
 
     OPStackParameters {
         l2_output_root,

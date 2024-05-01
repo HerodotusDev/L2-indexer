@@ -1,0 +1,9 @@
+[package]
+name = "common"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+eyre.workspace = true
+serde.workspace = true
+config.workspace = true

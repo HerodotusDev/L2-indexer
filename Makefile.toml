@@ -1,0 +1,54 @@
+[env]
+CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
+
+[tasks.format]
+install_crate = "rustfmt"
+command = "cargo"
+args = ["fmt", "--", "--check"]
+description = "Run rustfmt to check the code formatting without making changes."
+
+[tasks.clean]
+command = "cargo"
+args = ["clean"]
+description = "Clean up the project by removing the target directory."
+
+[tasks.clippy]
+command = "cargo"
+args = ["clippy", "--all-targets", "--all-features", "--", "-Dwarnings"]
+description = "Run clippy to catch common mistakes and improve your Rust code."
+
+[tasks.test]
+workspace = false
+command = "cargo"
+args = ["nextest", "run", "--workspace", "${@}"]
+description = "Execute all unit tests in the workspace."
+
+[tasks.run-ci-flow]
+workspace = false
+description = "Run the entire CI pipeline including format, clippy, and test checks."
+dependencies = ["format", "clippy", "test"]
+
+
+[tasks.setup]
+workspace = false
+description = "Set up the L2 indexer environment."
+script = '''
+echo "Setting up the environment..."
+./scripts/setup.sh
+'''
+
+[tasks.restart]
+workspace = false
+description = "Restart the L2 indexer."
+script = '''
+echo "Restart the program..."
+./scripts/compile.sh
+'''
+
+[tasks.cleanup]
+workspace = false
+description = "Clean up the setup by running the cleanup script."
+script = '''
+echo "Cleaning up..."
+./scripts/cleanup.sh
+'''

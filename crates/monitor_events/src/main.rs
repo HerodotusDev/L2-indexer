@@ -1,10 +1,9 @@
+use ::common::{get_network_config, ChainName, ChainType};
 use arbitrum::create_arbitrum_table_if_not_exists;
-use config::{Config, File, FileFormat};
 use dotenv::dotenv;
 use ethers::prelude::*;
 use eyre::Result;
 use opstack::create_opstack_table_if_not_exists;
-use serde::Deserialize;
 use std::{
     str::FromStr,
     sync::Arc,
@@ -13,107 +12,11 @@ use std::{
 };
 use tokio_postgres::NoTls;
 
-use crate::{
-    arbitrum::handle_arbitrum_events,
-    opstack::{handle_opstack_events, insert_into_postgres},
-};
+use crate::{arbitrum::handle_arbitrum_events, opstack::handle_opstack_events};
 
 mod arbitrum;
 mod fetcher;
 mod opstack;
-
-/// A struct that represents the Networks struct in the JSON file
-#[derive(Debug, Deserialize)]
-struct Networks {
-    name: String,
-    l1_contract: String,
-    block_delay: u64,
-    poll_period_sec: u64,
-    batch_size: Option<u64>,
-}
-
-/// A chain name
-#[derive(Debug, Clone, Copy)]
-enum ChainName {
-    Arbitrum,
-    Base,
-    Optimism,
-    Zora,
-}
-
-impl ToString for ChainName {
-    fn to_string(&self) -> String {
-        match self {
-            ChainName::Arbitrum => "arbitrum".to_string(),
-            ChainName::Base => "base".to_string(),
-            ChainName::Optimism => "optimism".to_string(),
-            ChainName::Zora => "zora".to_string(),
-        }
-    }
-}
-
-impl FromStr for ChainName {
-    type Err = eyre::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "arbitrum" => Ok(ChainName::Arbitrum),
-            "base" => Ok(ChainName::Base),
-            "optimism" => Ok(ChainName::Optimism),
-            "zora" => Ok(ChainName::Zora),
-            _ => Err(eyre::eyre!("invalid chain name")),
-        }
-    }
-}
-
-/// A chain name
-#[derive(Debug, Clone, Copy)]
-enum ChainType {
-    Mainnet,
-    Goerli,
-    Sepolia,
-}
-
-impl ToString for ChainType {
-    fn to_string(&self) -> String {
-        match self {
-            ChainType::Mainnet => "mainnet".to_string(),
-            ChainType::Goerli => "goerli".to_string(),
-            ChainType::Sepolia => "sepolia".to_string(),
-        }
-    }
-}
-
-impl FromStr for ChainType {
-    type Err = eyre::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "mainnet" => Ok(ChainType::Mainnet),
-            "goerli" => Ok(ChainType::Goerli),
-            "sepolia" => Ok(ChainType::Sepolia),
-            _ => Err(eyre::eyre!("invalid chain type")),
-        }
-    }
-}
-
-/// A builder that gets config from JSON and returns Config.
-/// Parameters:
-/// * network_config: The name of the network want to get from JSON
-/// Returns:
-/// * Networks struct that contains all the network config data
-fn get_network_config(chain_type: ChainType, chain_name: ChainName) -> Networks {
-    let config_name = format!(
-        "crates/monitor_events/networks/{}_{}",
-        chain_name.to_string(),
-        chain_type.to_string()
-    );
-    let config = Config::builder()
-        .add_source(File::new(&config_name, FileFormat::Json))
-        .build()
-        .unwrap();
-    config.try_deserialize().unwrap()
-}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -150,40 +53,31 @@ async fn main() -> Result<()> {
     });
 
     let mut from_block_num = match chain_name {
-        ChainName::Optimism | ChainName::Base | ChainName::Zora =>
-        // Create a table if it doesn't exist
-        {
-            match create_opstack_table_if_not_exists(table_name.clone(), &pg_client).await {
-                Ok(table_result) => match table_result {
-                    Some(max_blocknumber) => (max_blocknumber + 1).into(),
-                    None => U64([0]),
-                },
-                Err(err) => panic!("Error creating table: {:?}", err),
-            }
+        ChainName::Optimism | ChainName::Base | ChainName::Zora => {
+            create_opstack_table_if_not_exists(table_name.clone(), &pg_client).await
         }
         ChainName::Arbitrum => {
-            match create_arbitrum_table_if_not_exists(table_name.clone(), &pg_client).await {
-                Ok(table_result) => match table_result {
-                    Some(max_blocknumber) => (max_blocknumber + 1).into(),
-                    None => U64([0]),
-                },
-                Err(err) => panic!("Error creating table: {:?}", err),
-            }
+            create_arbitrum_table_if_not_exists(table_name.clone(), &pg_client).await
         }
+    }
+    .expect("Error creating table")
+    .map_or(
+        U64([network.l1_contract_deployment_block]),
+        |max_blocknumber| (max_blocknumber + 1).into(),
+    );
+
+    let event_signature = match chain_name {
+        ChainName::Optimism | ChainName::Base | ChainName::Zora => {
+            "OutputProposed(bytes32,uint256,uint256,uint256)"
+        }
+        ChainName::Arbitrum => "SendRootUpdated(bytes32,bytes32)",
     };
 
-    let mut filter = match chain_name {
-        ChainName::Optimism | ChainName::Base | ChainName::Zora => Filter::new()
-            .address(address)
-            .event("OutputProposed(bytes32,uint256,uint256,uint256)")
-            .from_block(from_block_num)
-            .to_block(new_block_num),
-        ChainName::Arbitrum => Filter::new()
-            .address(address)
-            .event("SendRootUpdated(bytes32,bytes32)")
-            .from_block(from_block_num)
-            .to_block(new_block_num),
-    };
+    let mut filter = Filter::new()
+        .event(event_signature)
+        .address(address)
+        .from_block(from_block_num)
+        .to_block(new_block_num);
 
     // Loop to get the logs with time gap and with batch
     loop {
@@ -210,7 +104,7 @@ async fn main() -> Result<()> {
                     let params = handle_opstack_events(log);
                     // Insert the data into PostgreSQL
                     if let Err(err) =
-                        insert_into_postgres(table_name.clone(), &pg_client, params).await
+                        opstack::insert_into_postgres(table_name.clone(), &pg_client, params).await
                     {
                         eprintln!("Error inserting data into PostgreSQL: {:?}", err);
                     }
