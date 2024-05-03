@@ -10,7 +10,7 @@ sudo curl -L https://github.com/docker/compose/releases/latest/download/docker-c
 sudo chmod +x /usr/local/bin/docker-compose &&\
 
 echo "RUST" &&\
-sudo apt install build-essential -y &&\
+sudo apt install build-essential pkg-config libssl-dev -y &&\
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh &&\
 source "$HOME/.cargo/env" &&\
 cargo install --force cargo-make &&\
