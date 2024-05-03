@@ -85,5 +85,5 @@ jobs:
           docker builder prune -f &&\
           cd /root/l2-indexer &&\
           source ~/.cargo/env &&\
-          cargo make setup"
+          cargo make restart"
         shell: bash

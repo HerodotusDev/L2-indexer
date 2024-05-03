@@ -42,7 +42,7 @@ workspace = false
 description = "Restart the L2 indexer."
 script = '''
 echo "Restart the program..."
-./scripts/compile.sh
+./scripts/restart.sh
 '''
 
 [tasks.stop]
