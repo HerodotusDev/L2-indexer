@@ -8,10 +8,6 @@ docker-compose up --build -d
 echo "Building the Rust application..."
 cargo build --release
 
-# Step 3: Check if the database exists and create it if it does not
-echo "Waiting for PostgreSQL to start..."
-sleep 10  # This might need adjustment depending on your system
-
 # Step 4: Start the application using PM2
 echo "Starting the application using PM2..."
 pm2 start pm2.config.js
