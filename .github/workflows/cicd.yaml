@@ -81,8 +81,6 @@ jobs:
           ssh -o StrictHostKeyChecking=no -i ./l2-indexer.pem root@${{ secrets.SSH_HOST }}  "\
           echo -e '## Git sha: ${{ github.sha }}\nDate UNIX: $(date +%s)\n' >> version.md &&\
           echo '${{ secrets.ENV_CONFIG }}' > /root/l2-indexer/.env &&\
-          docker image prune -f &&\
-          docker builder prune -f &&\
           cd /root/l2-indexer &&\
           source ~/.cargo/env &&\
           cargo make restart"
