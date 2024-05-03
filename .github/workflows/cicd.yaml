@@ -1,0 +1,87 @@
+name: Rust CI
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+
+  push:
+    branches:
+      - main
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Toolchain info
+        run: |
+          cargo --version --verbose
+          rustc --version
+          cargo clippy --version
+
+      - name: Install prebuild binaries of cargo-make
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-make
+
+      - name: Run Format
+        run: cargo make format
+
+      - name: Run Build
+        run: cargo make build
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v2
+      - name: Get Commit SHA
+        run: |
+          echo "Commit SHA: ${{ github.sha }}"
+
+      - name: rsync deployments
+        uses: burnett01/rsync-deployments@5.2.1
+        with:
+          switches: -avzr --delete --exclude=.github --exclude=data --exclude=target --exclude=.env --exclude=.env.dist --exclude=.env.test --exclude=mocks --exclude=.git
+          path: .
+          remote_path: /root/l2-indexer
+          remote_host: ${{ secrets.SSH_HOST }}
+          remote_user: root
+          remote_key: ${{ secrets.SSH_DEPLOY_KEY }}
+
+      # - name: Run docker-compose on server
+      - name: Setup envs and run docker-compose on server
+        run: |
+          echo "${{ secrets.SSH_DEPLOY_KEY }}" > ./l2-indexer.pem &&\
+          chmod 600 ./l2-indexer.pem &&\
+          ssh -o StrictHostKeyChecking=no -i ./l2-indexer.pem root@${{ secrets.SSH_HOST }}  "\
+          echo -e '## Git sha: ${{ github.sha }}\nDate UNIX: $(date +%s)\n' >> version.md &&\
+          echo '${{ secrets.ENV_CONFIG }}' > /root/l2-indexer/.env &&\
+          docker image prune -f &&\
+          docker builder prune -f &&\ 
+          cargo make setup"
+        shell: bash

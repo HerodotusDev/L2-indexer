@@ -45,6 +45,14 @@ echo "Restart the program..."
 ./scripts/compile.sh
 '''
 
+[tasks.stop]
+workspace = false
+description = "Stop the L2 indexer."
+script = '''
+echo "Stop the program..."
+./scripts/stop.sh
+'''
+
 [tasks.cleanup]
 workspace = false
 description = "Clean up the setup by running the cleanup script."
