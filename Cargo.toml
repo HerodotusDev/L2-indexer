@@ -4,7 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace]
-members = ["crates/monitor_events", "crates/l2-micro-service", "crates/common"]
+members = [
+    "crates/monitor_events",
+    "crates/l2-micro-service",
+    "crates/common",
+    "crates/monitor_events_exex",
+]
 
 [workspace.dependencies]
 common = { path = "crates/common" }
