@@ -12,3 +12,4 @@ services:
       - 5432:5432
     volumes:
       - ./data/postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
