@@ -1,3 +1,7 @@
+echo "UBUNTU" &&\
+sudo apt update -y &&\
+sudo apt upgrade -y &&\
+
 echo "DOCKER" &&\
 sudo apt update &&\
 sudo apt install docker.io -y &&\
@@ -8,6 +12,13 @@ sudo usermod -aG docker ${USER} &&\
 echo "DOCKER-COMPOSE" &&\
 sudo curl -L https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose &&\
 sudo chmod +x /usr/local/bin/docker-compose &&\
+
+echo "DOCKER COMPOSE PLUGIN" &&\
+DOCKER_CONFIG=${DOCKER_CONFIG:-$HOME/.docker} &&\
+mkdir -p $DOCKER_CONFIG/cli-plugins &&\
+curl -SL https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-linux-x86_64 -o $DOCKER_CONFIG/cli-plugins/docker-compose &&\
+chmod +x $DOCKER_CONFIG/cli-plugins/docker-compose &&\
+docker-compose --version &&\
 
 echo "RUST" &&\
 sudo apt install build-essential pkg-config libssl-dev -y &&\
