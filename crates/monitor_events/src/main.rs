@@ -68,7 +68,7 @@ async fn main() -> Result<()> {
 
     let event_signature = match chain_name {
         ChainName::Optimism | ChainName::Base | ChainName::Zora => {
-            "OutputProposed(bytes32,uint256,uint256,uint256)"
+            "DisputeGameCreated(address,uint32,bytes32)"
         }
         ChainName::Arbitrum => "SendRootUpdated(bytes32,bytes32)",
     };
@@ -101,7 +101,7 @@ async fn main() -> Result<()> {
         for log in logs.iter() {
             match chain_name {
                 ChainName::Optimism | ChainName::Base | ChainName::Zora => {
-                    let params = handle_opstack_events(log);
+                    let params = handle_opstack_events(log, &client).await;
                     // Insert the data into PostgreSQL
                     if let Err(err) =
                         opstack::insert_into_postgres(table_name.clone(), &pg_client, params).await

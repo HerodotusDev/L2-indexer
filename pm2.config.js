@@ -19,23 +19,25 @@ module.exports = {
     //     DB_URL:'postgresql://postgres:password@localhost:5432/l2indexer',
     //   }
     // },
-    // {
-    //   name: 'monitor-base-sepolia',
-    //   script: 'target/release/monitor-events',
-    //   env: {
-    //     CHAIN_TYPE: 'sepolia',
-    //     CHAIN_NAME: 'base',
-    //     RPC_URL: 'https://ethereum-sepolia-rpc.publicnode.com',
-    //     DB_URL:'postgresql://postgres:password@localhost:5432/l2indexer',
-    //   }
-    // },
+    {
+      name: "monitor-base-sepolia",
+      script: "target/release/monitor-events",
+      env: {
+        CHAIN_TYPE: "sepolia",
+        CHAIN_NAME: "base",
+        RPC_URL:
+          "https://eth-sepolia.g.alchemy.com/v2/hb_2bJ6VjsFX3jpJfXFvyt1NzKSiRR-T",
+        DB_URL: "postgresql://postgres:password@localhost:5432/l2indexer",
+      },
+    },
     {
       name: "monitor-optimism-sepolia",
       script: "target/release/monitor-events",
       env: {
         CHAIN_TYPE: "sepolia",
         CHAIN_NAME: "optimism",
-        RPC_URL: "https://ethereum-sepolia-rpc.publicnode.com",
+        RPC_URL:
+          "https://eth-sepolia.g.alchemy.com/v2/hb_2bJ6VjsFX3jpJfXFvyt1NzKSiRR-T",
         DB_URL: "postgresql://postgres:password@localhost:5432/l2indexer",
       },
     },
