@@ -25,7 +25,8 @@ module.exports = {
       env: {
         CHAIN_TYPE: "sepolia",
         CHAIN_NAME: "base",
-        RPC_URL: "https://ethereum-sepolia-rpc.publicnode.com",
+        RPC_URL:
+          "https://eth-sepolia.g.alchemy.com/v2/1cpBOW7IDNaPC1Dybn6Qbv6uMszcmjlr",
         DB_URL: "postgresql://postgres:password@localhost:5432/l2indexer",
       },
     },
@@ -35,7 +36,8 @@ module.exports = {
       env: {
         CHAIN_TYPE: "sepolia",
         CHAIN_NAME: "optimism",
-        RPC_URL: "https://ethereum-sepolia-rpc.publicnode.com",
+        RPC_URL:
+          "https://eth-sepolia.g.alchemy.com/v2/1cpBOW7IDNaPC1Dybn6Qbv6uMszcmjlr",
         DB_URL: "postgresql://postgres:password@localhost:5432/l2indexer",
       },
     },
