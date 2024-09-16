@@ -53,7 +53,7 @@ async fn main() -> Result<()> {
     });
 
     let mut from_block_num = match chain_name {
-        ChainName::Optimism | ChainName::Base | ChainName::Zora => {
+        ChainName::Optimism | ChainName::Base | ChainName::Zora | ChainName::WorldChain => {
             create_opstack_table_if_not_exists(table_name.clone(), &pg_client).await
         }
         ChainName::Arbitrum => {
@@ -67,7 +67,7 @@ async fn main() -> Result<()> {
     );
 
     let event_signature = match chain_name {
-        ChainName::Optimism | ChainName::Base | ChainName::Zora => {
+        ChainName::Optimism | ChainName::Base | ChainName::Zora | ChainName::WorldChain => {
             "OutputProposed(bytes32,uint256,uint256,uint256)"
         }
         ChainName::Arbitrum => "SendRootUpdated(bytes32,bytes32)",
@@ -100,7 +100,7 @@ async fn main() -> Result<()> {
 
         for log in logs.iter() {
             match chain_name {
-                ChainName::Optimism | ChainName::Base | ChainName::Zora => {
+                ChainName::Optimism | ChainName::Base | ChainName::Zora | ChainName::WorldChain => {
                     let params = handle_opstack_events(log);
                     // Insert the data into PostgreSQL
                     if let Err(err) =

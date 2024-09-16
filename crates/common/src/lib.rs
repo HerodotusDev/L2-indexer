@@ -9,6 +9,7 @@ pub enum ChainName {
     Base,
     Optimism,
     Zora,
+    WorldChain,
 }
 
 impl ToString for ChainName {
@@ -18,6 +19,7 @@ impl ToString for ChainName {
             ChainName::Base => "base".to_string(),
             ChainName::Optimism => "optimism".to_string(),
             ChainName::Zora => "zora".to_string(),
+            ChainName::WorldChain => "world_chain".to_string(),
         }
     }
 }
@@ -31,6 +33,7 @@ impl FromStr for ChainName {
             "base" => Ok(ChainName::Base),
             "optimism" => Ok(ChainName::Optimism),
             "zora" => Ok(ChainName::Zora),
+            "world_chain" => Ok(ChainName::WorldChain),
             _ => Err(eyre::eyre!("invalid chain name")),
         }
     }
@@ -86,9 +89,9 @@ impl FromStr for Network {
     type Err = eyre::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let parts: Vec<&str> = s.split('_').collect();
-        let chain_name = ChainName::from_str(parts[0])?;
-        let chain_type = ChainType::from_str(parts[1])?;
+        let parts: Vec<&str> = s.rsplitn(2, '_').collect();
+        let chain_name = ChainName::from_str(parts[1])?;
+        let chain_type = ChainType::from_str(parts[0])?;
         Ok(Network {
             chain_name,
             chain_type,
