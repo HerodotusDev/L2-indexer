@@ -26,7 +26,7 @@ module.exports = {
         CHAIN_TYPE: "sepolia",
         CHAIN_NAME: "base",
         RPC_URL:
-          "https://eth-sepolia.g.alchemy.com/v2/hb_2bJ6VjsFX3jpJfXFvyt1NzKSiRR-T",
+          "https://eth-sepolia.g.alchemy.com/v2/1cpBOW7IDNaPC1Dybn6Qbv6uMszcmjlr",
         DB_URL: "postgresql://postgres:password@localhost:5432/l2indexer",
       },
     },
@@ -37,7 +37,18 @@ module.exports = {
         CHAIN_TYPE: "sepolia",
         CHAIN_NAME: "optimism",
         RPC_URL:
-          "https://eth-sepolia.g.alchemy.com/v2/hb_2bJ6VjsFX3jpJfXFvyt1NzKSiRR-T",
+          "https://eth-sepolia.g.alchemy.com/v2/1cpBOW7IDNaPC1Dybn6Qbv6uMszcmjlr",
+        DB_URL: "postgresql://postgres:password@localhost:5432/l2indexer",
+      },
+    },
+    {
+      name: "monitor-world-chain-sepolia",
+      script: "target/release/monitor-events",
+      env: {
+        CHAIN_TYPE: "sepolia",
+        CHAIN_NAME: "world_chain",
+        RPC_URL:
+          "https://eth-sepolia.g.alchemy.com/v2/1cpBOW7IDNaPC1Dybn6Qbv6uMszcmjlr",
         DB_URL: "postgresql://postgres:password@localhost:5432/l2indexer",
       },
     },

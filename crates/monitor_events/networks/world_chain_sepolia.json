@@ -1,0 +1,8 @@
+{
+  "name": "world_chain_sepolia",
+  "l1_contract": "0xc8886f8BAb6Eaeb215aDB5f1c686BF699248300e",
+  "block_delay": 20,
+  "poll_period_sec": 60,
+  "batch_size": 50000,
+  "l1_contract_deployment_block": 6278167
+}
