@@ -66,6 +66,37 @@ async fn connect_db(db_url: &str) -> Result<tokio_postgres::Client> {
     Ok(pg_client)
 }
 
+#[derive(Serialize, Debug)]
+struct HighestBlock {
+    chain: String,
+    block_number: u32,
+}
+
+async fn handle_get_highest_l2_block(
+    network: &str,
+    pg_client: &tokio_postgres::Client,
+) -> Result<HighestBlock> {
+    let network = Network::from_str(network)
+        .map_err(|e| eyre::eyre!("Invalid Network: {:?}", e.to_string()))?;
+
+    let max_query = format!(
+        "SELECT max(blocks.l2_block_number) FROM public.{} blocks",
+        network.to_string()
+    );
+
+    let rows = pg_client.query(&max_query, &[]).await?;
+    if rows.is_empty() {
+        Err(eyre::eyre!("Expected at least 1 row"))
+    } else {
+        let block_number: u32 = rows[0].get(0);
+
+        Ok(HighestBlock {
+            chain: network.to_string(),
+            block_number,
+        })
+    }
+}
+
 /// A function that gets the output root from a block number query from postgres db
 async fn handle_query_opstack(
     params: &ParamsInput,
@@ -163,6 +194,28 @@ async fn handle_query_arbitrum(
     }
 }
 
+// Input for request parameters
+#[derive(FromForm, Debug)]
+pub struct GetHighestL2BlockParamsInput {
+    network: String,
+}
+
+#[get("/highest-l2-block?<query..>")]
+async fn get_highest_l2_block(
+    query: form::Result<'_, GetHighestL2BlockParamsInput>,
+) -> Result<Json<HighestBlock>, status::Conflict<std::string::String>> {
+    let params = query.map_err(|e| status::Conflict(e.to_string()))?;
+    dotenv().ok();
+    let db_url: &str = &std::env::var("DB_URL").expect("DB_URL must be set");
+    let pg_client = connect_db(db_url).await.unwrap();
+    let network: &str = &params.network;
+
+    match handle_get_highest_l2_block(network, &pg_client).await {
+        Ok(highest_blocks) => Ok(Json(highest_blocks)),
+        Err(e) => Err(status::Conflict(e.to_string())),
+    }
+}
+
 #[get("/output-root?<query..>")]
 async fn get_output_root(
     query: form::Result<'_, ParamsInput>,
@@ -222,5 +275,5 @@ async fn get_output_root(
 
 #[launch]
 fn rocket() -> _ {
-    rocket::build().mount("/", routes![get_output_root])
+    rocket::build().mount("/", routes![get_output_root, get_highest_l2_block])
 }
