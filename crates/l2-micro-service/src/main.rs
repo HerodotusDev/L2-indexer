@@ -69,7 +69,7 @@ async fn connect_db(db_url: &str) -> Result<tokio_postgres::Client> {
 #[derive(Serialize, Debug)]
 struct HighestBlock {
     chain: String,
-    block_number: u32,
+    block_number: i32,
 }
 
 async fn handle_get_highest_l2_block(
@@ -88,7 +88,7 @@ async fn handle_get_highest_l2_block(
     if rows.is_empty() {
         Err(eyre::eyre!("Expected at least 1 row"))
     } else {
-        let block_number: u32 = rows[0].get(0);
+        let block_number: i32 = rows[0].get(0);
 
         Ok(HighestBlock {
             chain: network.to_string(),
