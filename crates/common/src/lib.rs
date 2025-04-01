@@ -6,6 +6,7 @@ use std::str::FromStr;
 #[derive(Debug, Clone, Copy)]
 pub enum ChainName {
     Arbitrum,
+    ApeChain,
     Base,
     Optimism,
     Zora,
@@ -16,6 +17,7 @@ impl ToString for ChainName {
     fn to_string(&self) -> String {
         match self {
             ChainName::Arbitrum => "arbitrum".to_string(),
+            ChainName::ApeChain => "ape_chain".to_string(),
             ChainName::Base => "base".to_string(),
             ChainName::Optimism => "optimism".to_string(),
             ChainName::Zora => "zora".to_string(),
@@ -30,6 +32,7 @@ impl FromStr for ChainName {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "arbitrum" => Ok(ChainName::Arbitrum),
+            "ape_chain" => Ok(ChainName::ApeChain),
             "base" => Ok(ChainName::Base),
             "optimism" => Ok(ChainName::Optimism),
             "zora" => Ok(ChainName::Zora),

@@ -56,7 +56,7 @@ async fn main() -> Result<()> {
         ChainName::Optimism | ChainName::Base | ChainName::Zora | ChainName::WorldChain => {
             create_opstack_table_if_not_exists(table_name.clone(), &pg_client).await
         }
-        ChainName::Arbitrum => {
+        ChainName::Arbitrum | ChainName::ApeChain => {
             create_arbitrum_table_if_not_exists(table_name.clone(), &pg_client).await
         }
     }
@@ -70,7 +70,7 @@ async fn main() -> Result<()> {
         ChainName::Optimism | ChainName::Base | ChainName::Zora | ChainName::WorldChain => {
             "OutputProposed(bytes32,uint256,uint256,uint256)"
         }
-        ChainName::Arbitrum => "SendRootUpdated(bytes32,bytes32)",
+        ChainName::Arbitrum | ChainName::ApeChain => "SendRootUpdated(bytes32,bytes32)",
     };
 
     let mut filter = Filter::new()
@@ -109,8 +109,10 @@ async fn main() -> Result<()> {
                         eprintln!("Error inserting data into PostgreSQL: {:?}", err);
                     }
                 }
-                ChainName::Arbitrum => {
-                    let params = handle_arbitrum_events(log, &chain_type).await.unwrap();
+                ChainName::Arbitrum | ChainName::ApeChain => {
+                    let params = handle_arbitrum_events(log, &chain_name, &chain_type)
+                        .await
+                        .unwrap();
                     // Insert the data into PostgreSQL
                     if let Err(err) =
                         arbitrum::insert_into_postgres(table_name.clone(), &pg_client, params).await
