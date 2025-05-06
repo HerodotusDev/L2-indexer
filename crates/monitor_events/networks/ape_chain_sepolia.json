@@ -1,0 +1,8 @@
+{
+  "name": "ape_chain_sepolia",
+  "l1_contract": "0x7B5fda237527B280224000A275eAa1B8b8149334",
+  "block_delay": 20,
+  "poll_period_sec": 60,
+  "batch_size": 50000,
+  "l1_contract_deployment_block": 64365575
+}

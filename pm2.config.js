@@ -6,19 +6,33 @@ module.exports = {
       env: {
         ARBITRUM_SEPOLIA_RPC_URL: "https://arbitrum-sepolia-rpc.publicnode.com",
         ARBITRUM_MAINNET_RPC_URL: "https://arbitrum-one-rpc.publicnode.com",
+        APE_CHAIN_SEPOLIA_RPC_URL: "https://curtis.rpc.caldera.xyz/http",
+        APE_CHAIN_MAINNET_RPC_URL: "https://rpc.apechain.com/http",
         DB_URL: "postgresql://postgres:password@localhost:5432/l2indexer",
       },
     },
     // {
-    //   name: 'monitor-arbitrum-sepolia',
-    //   script: 'target/release/monitor-events',
+    //   name: "monitor-arbitrum-sepolia",
+    //   script: "target/release/monitor-events",
     //   env: {
-    //     CHAIN_TYPE: 'sepolia',
-    //     CHAIN_NAME: 'arbitrum',
-    //     RPC_URL: 'https://ethereum-sepolia-rpc.publicnode.com',
-    //     DB_URL:'postgresql://postgres:password@localhost:5432/l2indexer',
-    //   }
+    //     CHAIN_TYPE: "sepolia",
+    //     CHAIN_NAME: "arbitrum",
+    //     RPC_URL: "https://ethereum-sepolia-rpc.publicnode.com",
+    //     ARBITRUM_SEPOLIA_RPC_URL: "https://arbitrum-sepolia-rpc.publicnode.com",
+    //     DB_URL: "postgresql://postgres:password@localhost:5432/l2indexer",
+    //   },
     // },
+    {
+      name: "monitor-ape-chain-sepolia",
+      script: "target/release/monitor-events",
+      env: {
+        CHAIN_TYPE: "sepolia",
+        CHAIN_NAME: "ape_chain",
+        RPC_URL: "https://arbitrum-sepolia-rpc.publicnode.com",
+        APE_CHAIN_SEPOLIA_RPC_URL: "https://curtis.rpc.caldera.xyz/http",
+        DB_URL: "postgresql://postgres:password@localhost:5432/l2indexer",
+      },
+    },
     {
       name: "monitor-base-sepolia",
       script: "target/release/monitor-events",

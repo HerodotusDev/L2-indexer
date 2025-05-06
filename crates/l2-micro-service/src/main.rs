@@ -226,7 +226,7 @@ async fn get_output_root(
     let pg_client = connect_db(db_url).await.unwrap();
     let network: &str = &params.network;
     match network {
-        "arbitrum_mainnet" | "arbitrum_sepolia" => {
+        "arbitrum_mainnet" | "arbitrum_sepolia" | "ape_chain_sepolia" => {
             match handle_query_arbitrum(&params, &pg_client).await {
                 Ok((
                     l2_output_root,

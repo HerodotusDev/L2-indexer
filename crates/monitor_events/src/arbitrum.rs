@@ -1,5 +1,6 @@
 use crate::fetcher::Fetcher;
 use ::common::ChainType;
+use common::ChainName;
 use ethers::prelude::*;
 use eyre::Result;
 
@@ -107,6 +108,7 @@ pub async fn insert_into_postgres(
 
 pub async fn handle_arbitrum_events(
     log: &Log,
+    chain_name: &ChainName,
     chain_type: &ChainType,
 ) -> Result<ArbitrumParameters> {
     //? Example log : log = Log { address: 0x0b9857ae2d4a3dbe74ffe1d7df045bb7f96e4840, topics: [0xb4df3847300f076a369cd76d2314b470a1194d9e8a6bb97f1860aee88a5f6748, 0x46ac12a9031cfe15b510a19b1ee6a237409cb5659fba8a71192229f7d086e67f, 0xf4369a47ee900d312913d8cb382a4eb174272c42cead9cdaf8c4db9b5f0eb9e9], data: Bytes(0x), block_hash: Some(0x0bf39cb7a1ef70be6350438c8e99a22e785d46309c91aaaf65d760e92ed97bd7), block_number: Some(15843456), transaction_hash: Some(0x306ce7c969f40a8afc7dc2fa0a45ba13daee06fecbb1ed938c129749225a0963), transaction_index: Some(188), log_index: Some(323), transaction_log_index: None, log_type: None, removed: Some(false) }
@@ -116,15 +118,7 @@ pub async fn handle_arbitrum_events(
     let l1_block_number = log.block_number.unwrap();
     let l1_transaction_index = log.transaction_index.unwrap();
     let l1_block_hash = Bytes::from(log.block_hash.unwrap().as_bytes().to_vec());
-    let arbitrum_rpc_url = match chain_type {
-        ChainType::Mainnet => std::env::var("ARBITRUM_MAINNET_RPC_URL")
-            .expect("ARBITRUM_MAINNET_RPC_URL must be set."),
-        ChainType::Sepolia => std::env::var("ARBITRUM_SEPOLIA_RPC_URL")
-            .expect("ARBITRUM_SEPOLIA_RPC_URL must be set."),
-        ChainType::Goerli => {
-            std::env::var("ARBITRUM_GOERLI_RPC_URL").expect("ARBITRUM_GOERLI_RPC_URL must be set.")
-        }
-    };
+    let arbitrum_rpc_url = get_arb_stack_rpc_url(chain_name, chain_type);
 
     let arbitrum_fetcher = Fetcher::new(arbitrum_rpc_url.to_string());
 
@@ -148,4 +142,21 @@ pub async fn handle_arbitrum_events(
         l1_transaction_index,
         l1_block_hash,
     })
+}
+
+fn get_arb_stack_rpc_url(chain_name: &ChainName, chain_type: &ChainType) -> String {
+    match (chain_name, chain_type) {
+        (ChainName::Arbitrum, ChainType::Mainnet) => std::env::var("ARBITRUM_MAINNET_RPC_URL")
+            .expect("ARBITRUM_MAINNET_RPC_URL must be set."),
+        (ChainName::Arbitrum, ChainType::Sepolia) => std::env::var("ARBITRUM_SEPOLIA_RPC_URL")
+            .expect("ARBITRUM_SEPOLIA_RPC_URL must be set."),
+        (ChainName::Arbitrum, ChainType::Goerli) => {
+            std::env::var("ARBITRUM_GOERLI_RPC_URL").expect("ARBITRUM_GOERLI_RPC_URL must be set.")
+        }
+        (ChainName::ApeChain, ChainType::Mainnet) => std::env::var("APE_CHAIN_MAINNET_RPC_URL")
+            .expect("APE_CHAIN_MAINNET_RPC_URL must be set."),
+        (ChainName::ApeChain, ChainType::Sepolia) => std::env::var("APE_CHAIN_SEPOLIA_RPC_URL")
+            .expect("APE_CHAIN_SEPOLIA_RPC_URL must be set."),
+        _ => panic!("Invalid chain name or chain type"),
+    }
 }
