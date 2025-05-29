@@ -1,0 +1,8 @@
+{
+  "name": "ape_chain_mainnet",
+  "l1_contract": "0x4F405BA65291063d8A524c2bDf55d4e67405c2aF",
+  "block_delay": 20,
+  "poll_period_sec": 60,
+  "batch_size": 50000,
+  "l1_contract_deployment_block": 247653199
+}

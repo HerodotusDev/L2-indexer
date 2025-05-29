@@ -23,6 +23,17 @@ module.exports = {
     //   },
     // },
     {
+      name: "monitor-ape-chain-mainnet",
+      script: "target/release/monitor-events",
+      env: {
+        CHAIN_TYPE: "mainnet",
+        CHAIN_NAME: "ape_chain",
+        RPC_URL: "https://arbitrum-one-rpc.publicnode.com",
+        APE_CHAIN_MAINNET_RPC_URL: "https://rpc.apechain.com/http",
+        DB_URL: "postgresql://postgres:password@localhost:5432/l2indexer",
+      },
+    },
+    {
       name: "monitor-ape-chain-sepolia",
       script: "target/release/monitor-events",
       env: {
