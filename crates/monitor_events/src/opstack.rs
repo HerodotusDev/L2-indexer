@@ -1,8 +1,10 @@
-use ethers::prelude::*;
+use std::sync::Arc;
+
+use ethers::{prelude::*, utils::*};
 
 pub struct OPStackParameters {
     l2_output_root: Bytes,
-    l2_output_index: U256,
+    l1_game_address: String,
     l2_block_number: U256,
     l1_timestamp: U256,
     l1_transaction_hash: Bytes,
@@ -50,7 +52,7 @@ pub async fn create_opstack_table_if_not_exists(
             "CREATE TABLE IF NOT EXISTS {} ( 
                 id                      SERIAL PRIMARY KEY,
                 l2_output_root          VARCHAR NOT NULL,
-                l2_output_index         INTEGER NOT NULL,
+                l1_game_address         VARCHAR NOT NULL,
                 l2_block_number         INTEGER NOT NULL,
                 l1_timestamp            INTEGER NOT NULL,
                 l1_transaction_hash     VARCHAR NOT NULL,
@@ -71,7 +73,7 @@ pub async fn create_opstack_table_if_not_exists(
 /// * table_name: The name of the postgres table
 /// * client: The postgres client
 /// * l2_output_root: The output root of the l2
-/// * l2_output_index: The output index of the l2
+/// * l1_game_address: The contract address of FaultDisputeGame
 /// * l2_block_number: The block number of the l2
 /// * l1_timestamp: The timestamp of the l1
 /// * l1_transaction_hash: The transaction hash of the l1
@@ -85,13 +87,13 @@ pub async fn insert_into_postgres(
     client: &tokio_postgres::Client,
     params: OPStackParameters,
 ) -> Result<(), tokio_postgres::Error> {
-    let insert_query = format!("INSERT INTO {} (l2_output_root, l2_output_index, l2_block_number, l1_timestamp, l1_transaction_hash, l1_block_number, l1_transaction_index, l1_block_hash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", table_name);
+    let insert_query = format!("INSERT INTO {} (l2_output_root, l1_game_address, l2_block_number, l1_timestamp, l1_transaction_hash, l1_block_number, l1_transaction_index, l1_block_hash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", table_name);
     client
         .execute(
             &insert_query,
             &[
                 &params.l2_output_root.to_string(),
-                &(params.l2_output_index.as_u64() as i32),
+                &(params.l1_game_address.to_string()),
                 &(params.l2_block_number.as_u64() as i32),
                 &(params.l1_timestamp.as_u64() as i32),
                 &params.l1_transaction_hash.to_string(),
@@ -105,23 +107,39 @@ pub async fn insert_into_postgres(
     Ok(())
 }
 
-pub fn handle_opstack_events(log: &Log) -> OPStackParameters {
-    let l2_output_root = Bytes::from(log.topics[1].as_bytes().to_vec());
-    let l2_output_index = U256::from_big_endian(log.topics[2].as_bytes());
-    let l2_block_number = U256::from_big_endian(log.topics[3].as_bytes());
+pub async fn handle_opstack_events(log: &Log, client: &Arc<Provider<Http>>) -> OPStackParameters {
+    let l1_game_address = Address::from(log.topics[1]);
+    let l2_output_root = Bytes::from(log.topics[3].as_bytes().to_vec());
     let l1_timestamp = U256::from_big_endian(&log.data[..]);
     let l1_transaction_hash = Bytes::from(log.transaction_hash.unwrap().as_bytes().to_vec());
     let l1_block_number = log.block_number.unwrap();
     let l1_transaction_index = log.transaction_index.unwrap();
     let l1_block_hash = Bytes::from(log.block_hash.unwrap().as_bytes().to_vec());
 
+    let selector = id("l2BlockNumber()");
+
+    let block_number = client
+        .call_raw(
+            &TransactionRequest::default()
+                .from(H160::zero())
+                .to(l1_game_address)
+                .data(selector)
+                .into(),
+        )
+        .await
+        .unwrap();
+    let l2_block_number = U256::from_big_endian(&block_number);
+
+    //? We need to format the Address because without it, it is being inserted to db formatted like 0x1234…5678
+    let formatted_address = format!("0x{}", hex::encode(l1_game_address.as_bytes()));
+
     println!(
-        "output_root = {l2_output_root}, l2OutputIndex = {l2_output_index}, l2BlockNumber = {l2_block_number}, l1Blocknumber = {l1_block_number}, l1Timestamp = {l1_timestamp}, l1_transaction_hash={l1_transaction_hash}, l1_transaction_index={l1_transaction_index}, L1_block_hash={l1_block_hash}"
+        "output_root = {l2_output_root}, l1GameAddress = {formatted_address}, l2BlockNumber = {l2_block_number}, l1Blocknumber = {l1_block_number}, l1Timestamp = {l1_timestamp}, l1_transaction_hash={l1_transaction_hash}, l1_transaction_index={l1_transaction_index}, L1_block_hash={l1_block_hash}"
     );
 
     OPStackParameters {
         l2_output_root,
-        l2_output_index,
+        l1_game_address: formatted_address,
         l2_block_number,
         l1_timestamp,
         l1_transaction_hash,

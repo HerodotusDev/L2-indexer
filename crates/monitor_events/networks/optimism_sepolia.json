@@ -1,8 +1,8 @@
 {
   "name": "optimism_sepolia",
-  "l1_contract": "0x90E9c4f8a994a250F6aEfd61CAFb4F2e895D458F",
+  "l1_contract": "0x05F9613aDB30026FFd634f38e5C4dFd30a197Fa1",
   "block_delay": 20,
   "poll_period_sec": 10800,
   "batch_size": 50000,
-  "l1_contract_deployment_block": 4071248
+  "l1_contract_deployment_block": 5515308
 }

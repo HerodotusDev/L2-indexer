@@ -1,8 +1,8 @@
 {
   "name": "base_sepolia",
-  "l1_contract": "0x84457ca9D0163FbC4bbfe4Dfbb20ba46e48DF254",
+  "l1_contract": "0xd6E6dBf4F7EA0ac412fD8b65ED297e64BB7a06E1",
   "block_delay": 20,
   "poll_period_sec": 10800,
   "batch_size": 50000,
-  "l1_contract_deployment_block": 4370901
+  "l1_contract_deployment_block": 6189927
 }
