@@ -3,7 +3,7 @@ extern crate rocket;
 
 use std::str::FromStr;
 
-use common::Network;
+use common::{Network, get_network_config};
 use dotenv::dotenv;
 use eyre::Result;
 use rocket::form::{self, FromForm};
@@ -16,13 +16,34 @@ use tokio_postgres::NoTls;
 #[derive(FromForm, Debug)]
 pub struct ParamsInput {
     network: String,
-    l2_block: i32,
+    l2_block: i64,
 }
 
 #[derive(Serialize, Debug)]
 enum OutputType {
     OpStack(OPStackParamsOutput),
+    OpStackFDG(OPStackFaultDisputeGameOutput),
     Arbitrum(ArbitrumParamsOutput),
+}
+
+
+#[derive(Serialize, Debug)]
+pub struct OPStackFaultDisputeGameOutput {
+    pub game_index: i32,
+    pub game_address: String,
+    pub game_type: i32,
+    pub timestamp: i32,
+    pub root_claim: String,
+    pub game_state: i32,
+    pub proposer_address: String,
+    pub l2_block_number: i32,
+    pub l2_state_root: String,
+    pub l2_withdrawal_storage_root: String,
+    pub l2_block_hash: String,
+    pub l1_transaction_hash: String,
+    pub l1_block_number: i32,
+    pub l1_transaction_index: i32,
+    pub l1_block_hash: String,
 }
 
 // Output for request parameters of opstack
@@ -101,13 +122,13 @@ async fn handle_get_highest_l2_block(
 async fn handle_query_opstack(
     params: &ParamsInput,
     pg_client: &tokio_postgres::Client,
-) -> Result<(String, i32, i32, i32, String, i32, i32, String)> {
+) -> Result<(String, i32, i32, i32, String, i32, i32, String)> {  // TODO: these return type need improvement to one struct
     let ParamsInput { l2_block, network } = params;
     let network = Network::from_str(network)
         .map_err(|e| eyre::eyre!("Invalid Network: {:?}", e.to_string()))?;
 
     let select_query = format!("SELECT l2_output_root, l2_output_index, l2_block_number, l1_timestamp, l1_transaction_hash, l1_block_number, l1_transaction_index, l1_block_hash
-    FROM {} 
+    FROM {}
     WHERE l2_block_number >= $1
     ORDER BY l2_block_number ASC
     LIMIT 1;", network.to_string());
@@ -148,15 +169,106 @@ async fn handle_query_opstack(
     }
 }
 
+/// A function that gets the fault dispute game output data from a block number query from postgres db
+async fn handle_query_opstack_fault_dispute_game(
+    params: &ParamsInput,
+    pg_client: &tokio_postgres::Client,
+) -> Result<( i32,    // game_index    // TODO: these return type need improvement to one struct
+   String, // game_address
+   i32,    // game_type
+   i32,    // timestamp
+   String, // root_claim
+   i32,    // game_state
+   String, // proposer_address
+   i32,    // l2_block_number
+   String, // l2_state_root
+   String, // l2_withdrawal_storage_root
+   String, // l2_block_hash
+   String, // l1_transaction_hash
+   i32,    // l1_block_number
+   i32,    // l1_transaction_index
+   String  // l1_block_hash
+)> {
+    let ParamsInput { l2_block, network } = params;
+    let network = Network::from_str(network)
+        .map_err(|e| eyre::eyre!("Invalid Network: {:?}", e.to_string()))?;
+
+    let select_query = format!(
+          "SELECT game_index, game_address, game_type, timestamp, root_claim, game_state, proposer_address, l2_block_number, l2_state_root, l2_withdrawal_storage_root, l2_block_hash, l1_transaction_hash, l1_block_number, l1_transaction_index, l1_block_hash
+           FROM {}_fault_dispute_games
+           WHERE l2_block_number >= $1
+           ORDER BY l2_block_number ASC
+           LIMIT 1;",
+          network.to_string()
+    );
+
+    let rows = pg_client.query(&select_query, &[&l2_block]).await?;
+    if rows.is_empty() {
+        Err(eyre::eyre!("Expected at least 1 row"))
+    } else {
+        let row = &rows[0];
+
+        let game_index: i32 = row.get(0);
+        let game_address: String = row.get(1);
+        let game_type: i32 = row.get(2);
+        let timestamp: i32 = row.get(3);
+        let root_claim: String = row.get(4);
+        let game_state: i32 = row.get(5);
+        let proposer_address: String = row.get(6);
+        let l2_block_number: i32 = row.get(7);
+        let l2_state_root: String = row.get(8);
+        let l2_withdrawal_storage_root: String = row.get(9);
+        let l2_block_hash: String = row.get(10);
+        let l1_transaction_hash: String = row.get(11);
+        let l1_block_number: i32 = row.get(12);
+        let l1_transaction_index: i32 = row.get(13);
+        let l1_block_hash: String = row.get(14);
+
+        println!("FDG game_index: {}", game_index);
+        println!("FDG game_address: {}", game_address);
+        println!("FDG game_type: {}", game_type);
+        println!("FDG timestamp: {}", timestamp);
+        println!("FDG root_claim: {}", root_claim);
+        println!("FDG game_state: {}", game_state);
+        println!("FDG proposer_address: {}", proposer_address);
+        println!("FDG l2_block_number: {}", l2_block_number);
+        println!("FDG l2_state_root: {}", l2_state_root);
+        println!("FDG l2_withdrawal_storage_root: {}", l2_withdrawal_storage_root);
+        println!("FDG l2_block_hash: {}", l2_block_hash);
+        println!("FDG l1_transaction_hash: {}", l1_transaction_hash);
+        println!("FDG l1_block_number: {}", l1_block_number);
+        println!("FDG l1_transaction_index: {}", l1_transaction_index);
+        println!("FDG l1_block_hash: {}", l1_block_hash);
+
+        Ok((
+                    game_index,
+                    game_address,
+                    game_type,
+                    timestamp,
+                    root_claim,
+                    game_state,
+                    proposer_address,
+                    l2_block_number,
+                    l2_state_root,
+                    l2_withdrawal_storage_root,
+                    l2_block_hash,
+                    l1_transaction_hash,
+                    l1_block_number,
+                    l1_transaction_index,
+                    l1_block_hash,
+        ))
+    }
+}
+
 /// A function that gets the output root from a block number query from postgres db
 async fn handle_query_arbitrum(
     params: &ParamsInput,
     pg_client: &tokio_postgres::Client,
-) -> Result<(String, String, i32, String, i32, i32, String)> {
+) -> Result<(String, String, i32, String, i32, i32, String)> {  // TODO: these return type need improvement to one struct
     let l2_block = params.l2_block;
     let network = &params.network;
     let select_query = format!("SELECT l2_output_root, l2_block_hash, l2_block_number, l1_transaction_hash, l1_block_number, l1_transaction_index, l1_block_hash
-    FROM {} 
+    FROM {}
     WHERE l2_block_number >= $1
     ORDER BY l2_block_number ASC
     LIMIT 1;", network);
@@ -194,6 +306,8 @@ async fn handle_query_arbitrum(
     }
 }
 
+
+
 // Input for request parameters
 #[derive(FromForm, Debug)]
 pub struct GetHighestL2BlockParamsInput {
@@ -224,8 +338,8 @@ async fn get_output_root(
     dotenv().ok();
     let db_url: &str = &std::env::var("DB_URL").expect("DB_URL must be set");
     let pg_client = connect_db(db_url).await.unwrap();
-    let network: &str = &params.network;
-    match network {
+    let network_str: &str = &params.network;
+    match network_str {
         "arbitrum_mainnet" | "arbitrum_sepolia" | "ape_chain_mainnet" | "ape_chain_sepolia" => {
             match handle_query_arbitrum(&params, &pg_client).await {
                 Ok((
@@ -247,29 +361,77 @@ async fn get_output_root(
                 }))),
                 Err(e) => Err(status::Conflict(e.to_string())),
             }
-        }
-        _ => match handle_query_opstack(&params, &pg_client).await {
-            Ok((
-                l2_output_root,
-                l2_output_index,
-                l2_block_number,
-                l1_timestamp,
-                l1_transaction_hash,
-                l1_block_number,
-                l1_transaction_index,
-                l1_block_hash,
-            )) => Ok(Json(OutputType::OpStack(OPStackParamsOutput {
-                l2_output_root,
-                l2_output_index,
-                l2_block_number,
-                l1_transaction_hash,
-                l1_transaction_index,
-                l1_timestamp,
-                l1_block_number,
-                l1_block_hash,
-            }))),
-            Err(e) => Err(status::Conflict(e.to_string())),
         },
+        _ => {
+                let network = Network::from_str(network_str).unwrap();
+                let network_config = get_network_config(network.chain_type, network.chain_name);
+                 let transition_block = network_config.transition_to_dispute_game_system_block.unwrap();
+                 let use_dispute_game_logic = network_str == "optimism_mainnet"
+                     && params.l2_block > i64::try_from(transition_block).unwrap();
+
+                 if use_dispute_game_logic {
+                     match handle_query_opstack_fault_dispute_game(&params, &pg_client).await {
+                                         Ok((
+                                             game_index,
+                                             game_address,
+                                             game_type,
+                                             timestamp,
+                                             root_claim,
+                                             game_state,
+                                             proposer_address,
+                                             l2_block_number,
+                                             l2_state_root,
+                                             l2_withdrawal_storage_root,
+                                             l2_block_hash,
+                                             l1_transaction_hash,
+                                             l1_block_number,
+                                             l1_transaction_index,
+                                             l1_block_hash,
+                                         )) => Ok(Json(OutputType::OpStackFDG(OPStackFaultDisputeGameOutput {
+                                             game_index,
+                                             game_address,
+                                             game_type,
+                                             timestamp,
+                                             root_claim,
+                                             game_state,
+                                             proposer_address,
+                                             l2_block_number,
+                                             l2_state_root,
+                                             l2_withdrawal_storage_root,
+                                             l2_block_hash,
+                                             l1_transaction_hash,
+                                             l1_block_number,
+                                             l1_transaction_index,
+                                             l1_block_hash,
+                                         }))),
+                                         Err(e) => Err(status::Conflict(e.to_string())),
+                        }
+                 } else {
+                     // OLD: Standard OutputProposed path
+                     match handle_query_opstack(&params, &pg_client).await {
+                         Ok((
+                             l2_output_root,
+                             l2_output_index,
+                             l2_block_number,
+                             l1_timestamp,
+                             l1_transaction_hash,
+                             l1_block_number,
+                             l1_transaction_index,
+                             l1_block_hash,
+                         )) => Ok(Json(OutputType::OpStack(OPStackParamsOutput {
+                             l2_output_root,
+                             l2_output_index,
+                             l2_block_number,
+                             l1_transaction_hash,
+                             l1_transaction_index,
+                             l1_timestamp,
+                             l1_block_number,
+                             l1_block_hash,
+                         }))),
+                         Err(e) => Err(status::Conflict(e.to_string())),
+                     }
+                 }
+             }
     }
 }
 
