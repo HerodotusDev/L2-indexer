@@ -4,5 +4,8 @@
   "block_delay": 20,
   "poll_period_sec": 60,
   "batch_size": 50000,
-  "l1_contract_deployment_block": 17365801
+  "l1_contract_deployment_block": 17365801,
+  "transition_to_dispute_game_system_block": 20062434,
+  "dispute_game_factory_l1_contract": "0xe5965Ab5962eDc7477C8520243A95517CD252fA9",
+  "trusted_proposer_address": "0x473300df21D047806A082244b417f96b32f13A33"
 }
