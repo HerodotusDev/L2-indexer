@@ -1,4 +1,4 @@
-use ::common::{get_network_config, Network, ChainName, ChainType, create_network_from_strings};
+use ::common::{get_network_config, Network, ChainName, ChainType};
 use arbitrum::create_arbitrum_table_if_not_exists;
 use dotenv::dotenv;
 use ethers::prelude::*;
@@ -42,20 +42,21 @@ async fn main() -> Result<()> {
 
     let db_url: &str = &std::env::var("DB_URL").expect("DB_URL must be set.");
     let provider = Provider::<Http>::try_from(rpc_url)?;
-    let client = Arc::new(provider);
+    let rpc_client = Arc::new(provider);
 
     let network_config = get_network_config(chain_type, chain_name);
     let block_delay = network_config.block_delay;
     let poll_period_sec = network_config.poll_period_sec;
-    let mut table_name = network_config.name;
+    let base_table_name = network_config.name.clone();
+    let mut table_name = base_table_name.clone();
     let block_delay: U64 = U64([block_delay]);
     let poll_period_sec: Duration = time::Duration::from_secs(poll_period_sec);
-    let address: Address = network_config.l1_contract.parse()?;
+    //let address: Address = network_config.l1_contract.parse()?;
 
 
 
     // Set block number values to filter
-    let mut new_block_num = client.get_block_number().await? - block_delay;
+    let mut new_block_num = rpc_client.get_block_number().await? - block_delay;
     let batch_size = network_config.batch_size.unwrap_or(new_block_num.as_u64());
 
     // Establish a PostgreSQL connection
@@ -68,9 +69,6 @@ async fn main() -> Result<()> {
         }
     });
 
-    // Only applicable for FDG enabled L2 chains
-    let highest_fdg_index = get_highest_game_index(&table_name, &pg_client).await?;
-    println!("Highest game_index: {}", highest_fdg_index);
 
     let mut from_block_num = match chain_name {
         ChainName::Optimism | ChainName::Base | ChainName::Zora | ChainName::WorldChain => {
@@ -94,19 +92,32 @@ async fn main() -> Result<()> {
             println!(
                 "already using FDG index mode"
             );
-            //from_block_num = create_opstack_dispute_games_table_if_not_exists(table_name.clone(), &pg_client).await;
+            from_block_num = U64::from(
+                create_opstack_dispute_games_table_if_not_exists(
+                    table_name.clone(),
+                    &pg_client
+                )
+                .await
+                .unwrap()
+                .expect("No block number found") as u64
+            );
     }
 
     println!(
         "starting indexing from block {from_block_num:?}"
     );
 
-    let event_signature = match chain_name {
-        ChainName::Optimism | ChainName::Base | ChainName::Zora | ChainName::WorldChain => {
-            "OutputProposed(bytes32,uint256,uint256,uint256)"
-        }
-        ChainName::Arbitrum | ChainName::ApeChain => "SendRootUpdated(bytes32,bytes32)",
-    };
+    // Only applicable for FDG enabled L2 chains
+    let highest_fdg_index = get_highest_game_index(&table_name, &pg_client).await?;
+    println!("Highest game_index: {}", highest_fdg_index);
+
+
+    // let event_signature = match chain_name {
+    //     ChainName::Optimism | ChainName::Base | ChainName::Zora | ChainName::WorldChain => {
+    //         "OutputProposed(bytes32,uint256,uint256,uint256)"
+    //     }
+    //     ChainName::Arbitrum | ChainName::ApeChain => "SendRootUpdated(bytes32,bytes32)",
+    // };
 
     let mut filter = Filter::new();
         // .event(event_signature)
@@ -168,7 +179,7 @@ async fn main() -> Result<()> {
             .from_block(from_block_num)
             .to_block(U64([upper_limit]));
 
-        let logs = client.get_logs(&filter).await?;
+        let logs = rpc_client.get_logs(&filter).await?;
 
          if use_dispute_game_logic {
             println!(
@@ -185,7 +196,7 @@ async fn main() -> Result<()> {
         for log in logs.iter() {
             match chain_name {
                 ChainName::Optimism if use_dispute_game_logic => {
-                        match handle_opstack_fdg_events(log, network, provider, highest_fdg_index).await {
+                        match handle_opstack_fdg_events(log, &network, rpc_client.clone(), highest_fdg_index).await {
                                 Ok(params) => {
                                     if let Err(err) = opstack::insert_fdg_into_postgres(table_name.clone(), &pg_client, params).await {
                                         eprintln!("PostgreSQL insert error: {err:?}");
@@ -222,7 +233,7 @@ async fn main() -> Result<()> {
         } else {
             thread::sleep(poll_period_sec);
             from_block_num = U64([upper_limit + 1]);
-            new_block_num = client.get_block_number().await? - block_delay;
+            new_block_num = rpc_client.get_block_number().await? - block_delay;
         }
     }
 }

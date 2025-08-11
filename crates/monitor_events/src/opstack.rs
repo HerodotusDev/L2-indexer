@@ -6,6 +6,10 @@ abigen!(
     "abi/DisputeGame.json"
 );
 use std::str::FromStr;
+use std::{
+    sync::Arc,
+};
+
 
 pub struct OPStackParameters {
     l2_output_root: Bytes,
@@ -25,7 +29,7 @@ pub struct OPStackDisputeGameParameters {
     timestamp: u64,
     root_claim: Bytes,
     game_state: u64,
-    l2_block_number: U64,
+    l2_block_number: U256,
     l2_state_root: Bytes,
     l2_withdrawal_storage_root: Bytes,
     l2_block_hash: Bytes,
@@ -310,7 +314,12 @@ pub fn handle_opstack_events(log: &Log) -> OPStackParameters {
 }
 
 
-pub async fn handle_opstack_fdg_events(log: &Log, network: Network, l1_provider: Provider, game_index: u64) -> Result<OPStackDisputeGameParameters, ()> {
+pub async fn handle_opstack_fdg_events(
+    log: &Log,
+    network: &Network,
+    l1_provider: Arc<Provider<Http>>,
+    game_index: u64,
+) -> Result<OPStackDisputeGameParameters, ()> {
     let dispute_proxy_address: Address = Address::from(log.topics[1]).into();
     let game_type = {
         let mut bytes = [0u8; 32];
@@ -324,9 +333,33 @@ pub async fn handle_opstack_fdg_events(log: &Log, network: Network, l1_provider:
         l1_provider.clone()
     );
 
-    let game_status: u64 = dispute_game.status().call().await?;
-    let timestamp: u64 = dispute_game.createdAt().call().await?;
-    let game_creator: Address = dispute_game.method::<(), Address>("gameCreator", ())?.call().await?;
+    let status_u8: u8 = dispute_game
+        .status()
+        .call()
+        .await
+        .map_err(|e| {
+            eprintln!("status() failed: {e:?}");
+            ()
+        })?;
+    let game_status: u64 = status_u8 as u64;
+
+    let timestamp: u64 = dispute_game
+        .created_at()
+        .call()
+        .await
+        .map_err(|e| {
+            eprintln!("created_at() failed: {e:?}");
+            ()
+        })?;
+
+    let game_creator: Address = dispute_game
+        .game_creator()
+        .call()
+        .await
+        .map_err(|e| {
+            eprintln!("game_creator() failed: {e:?}");
+            ()
+        })?;
 
     let network_config = get_network_config(network.chain_type, network.chain_name);
 
@@ -349,10 +382,15 @@ pub async fn handle_opstack_fdg_events(log: &Log, network: Network, l1_provider:
         //return Err(eyre::eyre!("Dispute game not finalized (status != 2 and not trusted proposer with status 0 or 2)"));
     }
 
-    let l2_block_number: U64 = dispute_game
-            .method::<(), U64>("l2BlockNumber", ())?
-            .call()
-            .await?;
+
+    let l2_block_number: U256 = dispute_game
+        .l_2_block_number()
+        .call()
+        .await
+        .map_err(|e| {
+            eprintln!("l2_block_number() failed: {e:?}");
+            ()
+        })?;
 
     // Geet the L2 block details from L2 RPC
     let l2_rpc_url = std::env::var("L2_RPC_URL")
