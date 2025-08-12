@@ -88,28 +88,34 @@ async fn main() -> Result<()> {
         && chain_type == ChainType::Mainnet
         && from_block_num.as_u64() >= network_config.transition_to_dispute_game_system_block.unwrap_or(0);
 
+    let mut highest_fdg_index = 0;
+    let fault_dispute_games_table_name = format!("{}_fault_dispute_games", network_config.name);
+
     if use_dispute_game_logic {
             println!(
                 "already using FDG index mode"
             );
-            from_block_num = U64::from(
+            let from_block_num_fdg = U64::from(
                 create_opstack_dispute_games_table_if_not_exists(
-                    table_name.clone(),
-                    &pg_client
+                    fault_dispute_games_table_name.clone(),
+                    &pg_client,
                 )
-                .await
-                .unwrap()
-                .expect("No block number found") as u64
+                .await?                 // propagate DB error if any
+                .unwrap_or(0)           // default when None
             );
+            if (from_block_num_fdg > from_block_num) {
+                from_block_num = from_block_num_fdg;
+            }
+
+            // Only applicable for FDG enabled L2 chains
+
+            highest_fdg_index = get_highest_game_index(&fault_dispute_games_table_name, &pg_client).await?;
+            println!("Highest game_index: {}", highest_fdg_index);
     }
 
     println!(
         "starting indexing from block {from_block_num:?}"
     );
-
-    // Only applicable for FDG enabled L2 chains
-    let highest_fdg_index = get_highest_game_index(&table_name, &pg_client).await?;
-    println!("Highest game_index: {}", highest_fdg_index);
 
 
     // let event_signature = match chain_name {
@@ -183,12 +189,12 @@ async fn main() -> Result<()> {
 
          if use_dispute_game_logic {
             println!(
-                "from {from_block_num:?} to {new_block_num:?}, {} dispute games created!",
+                "from {from_block_num:?} to {upper_limit:?}, {} dispute games created!",
                 logs.iter().len()
             );
          } else {
              println!(
-                 "from {from_block_num:?} to {new_block_num:?}, {} pools found!",
+                 "from {from_block_num:?} to {upper_limit:?}, {} pools found!",
                  logs.iter().len()
              );
          }
@@ -201,6 +207,7 @@ async fn main() -> Result<()> {
                                     if let Err(err) = opstack::insert_fdg_into_postgres(table_name.clone(), &pg_client, params).await {
                                         eprintln!("PostgreSQL insert error: {err:?}");
                                 }
+                                highest_fdg_index += 1;
                         }
                         Err(err) => eprintln!("Failed to handle DisputeGameCreated: {err:?}"),
                     }

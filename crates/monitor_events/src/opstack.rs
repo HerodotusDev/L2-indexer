@@ -1,6 +1,7 @@
 use common::{Network, get_network_config};
 use crate::fetcher::Fetcher;
 use ethers::prelude::*;
+ use ethers_core::utils::hex;
 abigen!(
     DisputeGame,
     "abi/DisputeGame.json"
@@ -9,7 +10,11 @@ use std::str::FromStr;
 use std::{
     sync::Arc,
 };
+use eyre::{eyre, Result};
 
+fn parse_bytes(name: &str, s: &str) -> eyre::Result<Bytes> {
+    Bytes::from_str(s).map_err(|_| eyre!("invalid {name} hex: {s}"))
+}
 
 pub struct OPStackParameters {
     l2_output_root: Bytes,
@@ -29,10 +34,11 @@ pub struct OPStackDisputeGameParameters {
     timestamp: u64,
     root_claim: Bytes,
     game_state: u64,
+    proposer_address: Address,
     l2_block_number: U256,
-    l2_state_root: Bytes,
-    l2_withdrawal_storage_root: Bytes,
-    l2_block_hash: Bytes,
+    l2_state_root: Option<Bytes>,
+    l2_withdrawal_storage_root:Option<Bytes>,
+    l2_block_hash: Option<Bytes>,
     l1_timestamp: U64,
     l1_transaction_hash: Bytes,
     l1_block_number: U64,
@@ -105,7 +111,7 @@ pub async fn create_opstack_table_if_not_exists(
 pub async fn create_opstack_dispute_games_table_if_not_exists(
     table_name: String,
     client: &tokio_postgres::Client,
-) -> Result<Option<i32>, tokio_postgres::Error> {
+) -> Result<Option<i64>, tokio_postgres::Error> {
     let create_table_query = format!("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '{}') AS table_existence;", table_name);
     let rows = client.query(&create_table_query, &[]).await?;
 
@@ -121,7 +127,7 @@ pub async fn create_opstack_dispute_games_table_if_not_exists(
         let rows = client.query(&create_table_query, &[]).await?;
 
         // Handle possible NULL result for max l1_block_number
-        let max_blocknum: Option<i32> = rows[0].try_get(0)?;
+        let max_blocknum: Option<i64> = rows[0].try_get(0)?;
 
         if let Some(max_num) = max_blocknum {
             println!("max_blocknum: {max_num}");
@@ -131,23 +137,25 @@ pub async fn create_opstack_dispute_games_table_if_not_exists(
             Ok(None)
         }
     } else {
+        // l2_state_root, l2_withdrawal_storage_root, l2_block_hash can be null if there is worng game created for nonexistent L2 block
         let create_table_query = format!(
-            "CREATE TABLE IF NOT EXISTS {}_fault_dispute_games (
+            "CREATE TABLE IF NOT EXISTS {} (
                 id                      SERIAL PRIMARY KEY,
-                game_index          INTEGER NOT NULL,
+                game_index          BIGINT NOT NULL,
                 game_address          VARCHAR NOT NULL,
-                game_type         INTEGER NOT NULL,
-                timestamp         INTEGER NOT NULL,
+                game_type         BIGINT NOT NULL,
+                timestamp         BIGINT NOT NULL,
                 root_claim            VARCHAR NOT NULL,
-                game_state         INTEGER NOT NULL,
+                game_state         BIGINT NOT NULL,
                 proposer_address            VARCHAR NOT NULL,
-                l2_block_number     INTEGER NOT NULL,
-                l2_state_root     VARCHAR NOT NULL,
-                l2_withdrawal_storage_root     VARCHAR NOT NULL,
-                l2_block_hash     VARCHAR NOT NULL,
+                l2_block_number     BIGINT NOT NULL,
+                l2_state_root     VARCHAR,
+                l2_withdrawal_storage_root     VARCHAR,
+                l2_block_hash     VARCHAR,
+                l1_timestamp            BIGINT NOT NULL,
                 l1_transaction_hash     VARCHAR NOT NULL,
-                l1_block_number         INTEGER NOT NULL,
-                l1_transaction_index    INTEGER NOT NULL,
+                l1_block_number         BIGINT NOT NULL,
+                l1_transaction_index    BIGINT NOT NULL,
                 l1_block_hash           VARCHAR NOT NULL
             )",
             table_name
@@ -211,6 +219,7 @@ pub async fn insert_fdg_into_postgres(
             timestamp,
             root_claim,
             game_state,
+            proposer_address,
             l2_block_number,
             l2_state_root,
             l2_withdrawal_storage_root,
@@ -223,22 +232,35 @@ pub async fn insert_fdg_into_postgres(
         ) VALUES (
             $1, $2, $3, $4, $5,
             $6, $7, $8, $9, $10,
-            $11, $12, $13, $14, $15
+            $11, $12, $13, $14, $15, $16
         )",
         table_name
     );
 
     let game_index_i64 = params.game_index as i64;
-    let game_address_str = params.game_address.to_string();
-    let game_type_i32 = params.game_type as i32;
+   //let game_address_str = params.game_address.to_string();
+    let game_address_str = format!("{:#x}", params.game_address);
+    let game_type_i32 = params.game_type as i64;
     let timestamp_i64 = params.timestamp as i64;
     let root_claim_str = format!("{:#x}", params.root_claim);
     let game_state_i64 = params.game_state as i64;
 
+    //let proposer_address_str = params.proposer_address.to_string();
+    let proposer_address_str = format!("{:#x}", params.proposer_address);
+
     let l2_block_number_i64 = params.l2_block_number.as_u64() as i64;
-    let l2_state_root_str = format!("{:#x}", params.l2_state_root);
-    let l2_withdrawal_storage_root_str = format!("{:#x}", params.l2_withdrawal_storage_root);
-    let l2_block_hash_str = format!("{:#x}", params.l2_block_hash);
+
+    let l2_state_root_hex_str: Option<String> =
+            params.l2_state_root.as_ref().map(|h| format!("{:#x}", h));
+    let l2_withdrawal_storage_root_hex_str: Option<String> =
+            params.l2_withdrawal_storage_root.as_ref().map(|h| format!("{:#x}", h));
+    let l2_block_hash_hex_str: Option<String> =
+            params.l2_block_hash.as_ref().map(|h| format!("{:#x}", h));
+
+
+    // let l2_state_root_str = format!("{:#x}", params.l2_state_root);
+    // let l2_withdrawal_storage_root_str = format!("{:#x}", params.l2_withdrawal_storage_root);
+    // let l2_block_hash_str = format!("{:#x}", params.l2_block_hash);
 
     let l1_timestamp_i64 = params.l1_timestamp.as_u64() as i64;
     let l1_tx_hash_str = params.l1_transaction_hash.to_string();
@@ -256,10 +278,11 @@ pub async fn insert_fdg_into_postgres(
                 &timestamp_i64,
                 &root_claim_str,
                 &game_state_i64,
+                &proposer_address_str,
                 &l2_block_number_i64,
-                &l2_state_root_str,
-                &l2_withdrawal_storage_root_str,
-                &l2_block_hash_str,
+                &l2_state_root_hex_str,
+                &l2_withdrawal_storage_root_hex_str,
+                &l2_block_hash_hex_str,
                 &l1_timestamp_i64,
                 &l1_tx_hash_str,
                 &l1_block_number_i64,
@@ -286,6 +309,7 @@ pub async fn get_highest_game_index(
         Ok(0)
     }
 }
+
 
 pub fn handle_opstack_events(log: &Log) -> OPStackParameters {
     let l2_output_root = Bytes::from(log.topics[1].as_bytes().to_vec());
@@ -373,6 +397,10 @@ pub async fn handle_opstack_fdg_events(
         None => false,
     };
 
+    println!(
+       "Fetched dispute game at address {:#x}", dispute_proxy_address
+    );
+
     if !(game_status == 2 || (is_trusted_proposer && (game_status == 0 || game_status == 2))) {
         // If the dispute game is not finalised, we anyway inserting it to the db with correct state
         // Later, in db retrieval state wi checking this condition also
@@ -394,21 +422,51 @@ pub async fn handle_opstack_fdg_events(
 
     // Geet the L2 block details from L2 RPC
     let l2_rpc_url = std::env::var("L2_RPC_URL")
-        .expect("ARBITRUM_SEPOLIA_RPC_URL must be set.");
+        .expect("L2_RPC_URL must be set.");
 
     let l2_rpc_fetcher = Fetcher::new(l2_rpc_url.to_string());
 
-    let optimism_output = l2_rpc_fetcher.fetch_optimism_output_at_block(&l2_block_number.to_string()).await.unwrap();
+    let l2_block_number_hex = format!("0x{:x}", l2_block_number);
+    //let optimism_output = l2_rpc_fetcher.fetch_optimism_output_at_block(&l2_block_number_hex).await.unwrap();
+    // let optimism_output = match l2_rpc_fetcher.fetch_optimism_output_at_block(&l2_block_number_hex).await? {
+    //     Some(out) => { /* process */ }
+    //     None => {
+    //         // block/output not available → skip insert or insert NULL/defaults
+    //     }
+    // };
 
-    let l2_state_root: Bytes =
-        Bytes::from_str(&optimism_output.state_root).expect("Invalid state_root hex");
+    // let l2_state_root: Bytes =
+    //     Bytes::from_str(&optimism_output.state_root).expect("Invalid state_root hex");
 
-    let l2_withdrawal_storage_root: Bytes =
-        Bytes::from_str(&optimism_output.withdrawal_storage_root)
-            .expect("Invalid withdrawal_storage_root hex");
+    // let l2_withdrawal_storage_root: Bytes =
+    //     Bytes::from_str(&optimism_output.withdrawal_storage_root)
+    //         .expect("Invalid withdrawal_storage_root hex");
 
-    let l2_block_hash: Bytes =
-        Bytes::from_str(&optimism_output.block_ref.hash).expect("Invalid block hash hex");
+    // let l2_block_hash: Bytes =
+    //     Bytes::from_str(&optimism_output.block_ref.hash).expect("Invalid block hash hex");
+    //
+    let maybe_out = l2_rpc_fetcher
+           .fetch_optimism_output_at_block(&l2_block_number_hex)
+           .await
+           .map_err(|_| ())?;  // convert eyre::Report -> ()
+
+       let (l2_state_root, l2_withdrawal_storage_root, l2_block_hash) = match maybe_out {
+           Some(out) => (
+               Some(parse_bytes("state_root", &out.state_root).map_err(|_| ())?),
+               Some(parse_bytes("withdrawal_storage_root", &out.withdrawal_storage_root).map_err(|_| ())?),
+               Some(parse_bytes("block_hash", &out.block_ref.hash).map_err(|_| ())?),
+           ),
+           None => (None, None, None),
+       };
+
+    // Example insert (VARCHAR columns; store hex strings). Assumes columns are NULLable.
+    // let l2_state_root_hex: Option<String> =
+    //     l2_state_root.as_ref().map(|b| format!("0x{}", hex::encode(b)));
+    // let l2_withdrawal_storage_root_hex: Option<String> =
+    //     l2_withdrawal_storage_root.as_ref().map(|b| format!("0x{}", hex::encode(b)));
+    // let l2_block_hash_hex: Option<String> =
+    //     l2_block_hash.as_ref().map(|b| format!("0x{}", hex::encode(b)));
+
 
     let l1_timestamp = U64::from_big_endian(&log.data[..]);
     let l1_transaction_hash = Bytes::from(log.transaction_hash.unwrap().as_bytes().to_vec());
@@ -424,6 +482,7 @@ pub async fn handle_opstack_fdg_events(
             timestamp,
             root_claim,
             game_state: game_status,
+            proposer_address: game_creator,
             l2_block_number,
             l2_state_root,
             l2_withdrawal_storage_root,
