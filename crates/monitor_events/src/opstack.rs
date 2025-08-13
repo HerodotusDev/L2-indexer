@@ -1,4 +1,5 @@
-use common::{Network, get_network_config};
+use common::{Network, get_network_config, ChainType};
+
 use crate::fetcher::Fetcher;
 use ethers::prelude::*;
  use ethers_core::utils::hex;
@@ -376,14 +377,19 @@ pub async fn handle_opstack_fdg_events(
             ()
         })?;
 
-    let game_creator: Address = dispute_game
-        .game_creator()
-        .call()
-        .await
-        .map_err(|e| {
-            eprintln!("game_creator() failed: {e:?}");
-            ()
-        })?;
+    // This is bacause OP Sepolia game contract dont have the gemaCreator method
+    let mut game_creator: Address = Address::from_str("0x0000000000000000000000000000000000000000").unwrap();
+    
+    if network.chain_type == ChainType::Mainnet {
+        game_creator = dispute_game
+            .game_creator()
+            .call()
+            .await
+            .map_err(|e| {
+                eprintln!("game_creator() failed: {e:?}");
+                ()
+            })?;
+    }
 
     let network_config = get_network_config(network.chain_type, network.chain_name);
 
@@ -420,6 +426,8 @@ pub async fn handle_opstack_fdg_events(
             ()
         })?;
 
+
+
     // Geet the L2 block details from L2 RPC
     let l2_rpc_url = std::env::var("L2_RPC_URL")
         .expect("L2_RPC_URL must be set.");
@@ -445,10 +453,19 @@ pub async fn handle_opstack_fdg_events(
     // let l2_block_hash: Bytes =
     //     Bytes::from_str(&optimism_output.block_ref.hash).expect("Invalid block hash hex");
     //
-    let maybe_out = l2_rpc_fetcher
-           .fetch_optimism_output_at_block(&l2_block_number_hex)
-           .await
-           .map_err(|_| ())?;  // convert eyre::Report -> ()
+    let maybe_out = match l2_rpc_fetcher
+        .fetch_optimism_output_at_block(&l2_block_number_hex)
+        .await
+    {
+        Ok(val) => val,
+        Err(e) => {
+            eprintln!(
+                "fetch_optimism_output_at_block({}) failed: {:?}",
+                l2_block_number_hex, e
+            );
+            return Err(()); // explicitly return () as error
+        }
+    };
 
        let (l2_state_root, l2_withdrawal_storage_root, l2_block_hash) = match maybe_out {
            Some(out) => (

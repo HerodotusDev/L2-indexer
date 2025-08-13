@@ -370,7 +370,7 @@ async fn get_output_root(
         _ => {
                 let network = Network::from_str(network_str).unwrap();
                 let network_config = get_network_config(network.chain_type, network.chain_name);
-                 let transition_block = network_config.transition_to_dispute_game_system_block.unwrap();
+                 let transition_block = network_config.transition_to_dispute_game_system_l2_block.unwrap();
                  let use_dispute_game_logic = network_str == "optimism_mainnet"
                      //&& params.l2_block > i64::try_from(transition_block).unwrap();
                      && u64::try_from(params.l2_block).unwrap() > transition_block;
