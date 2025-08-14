@@ -44,6 +44,7 @@ pub struct OPStackFaultDisputeGameOutput {
     pub l1_block_number: i64,
     pub l1_transaction_index: i64,
     pub l1_block_hash: String,
+    pub version_byte: String,
 }
 
 // Output for request parameters of opstack
@@ -393,7 +394,7 @@ async fn get_output_root(
                                              l1_transaction_hash,
                                              l1_block_number,
                                              l1_transaction_index,
-                                             l1_block_hash,
+                                             l1_block_hash
                                          )) => Ok(Json(OutputType::OpStackFDG(OPStackFaultDisputeGameOutput {
                                              game_index,
                                              game_address,
@@ -410,6 +411,7 @@ async fn get_output_root(
                                              l1_block_number,
                                              l1_transaction_index,
                                              l1_block_hash,
+                                             version_byte: "0x0000000000000000000000000000000000000000000000000000000000000000".to_string()
                                          }))),
                                          Err(e) => Err(status::Conflict(e.to_string())),
                         }
