@@ -2,7 +2,7 @@ use common::{Network, get_network_config, ChainType};
 
 use crate::fetcher::Fetcher;
 use ethers::prelude::*;
- use ethers_core::utils::hex;
+ 
 abigen!(
     DisputeGame,
     "abi/DisputeGame.json"
@@ -10,6 +10,7 @@ abigen!(
 use std::str::FromStr;
 use std::{
     sync::Arc,
+    convert::TryInto,
 };
 use eyre::{eyre, Result};
 
@@ -36,7 +37,8 @@ pub struct OPStackDisputeGameParameters {
     root_claim: Bytes,
     game_state: u64,
     proposer_address: Address,
-    l2_block_number: U256,
+    l2_block_number: U256, // Keep original for reference
+    l2_block_number_safe: Option<u64>, // Safe u64 version for database
     l2_state_root: Option<Bytes>,
     l2_withdrawal_storage_root:Option<Bytes>,
     l2_block_hash: Option<Bytes>,
@@ -193,7 +195,7 @@ pub async fn insert_into_postgres(
             &[
                 &params.l2_output_root.to_string(),
                 &(params.l2_output_index.as_u64() as i32),
-                &(params.l2_block_number.as_u64() as i32),
+                &(params.l2_block_number.try_into().unwrap_or(0u64) as i32),
                 &(params.l1_timestamp.as_u64() as i32),
                 &params.l1_transaction_hash.to_string(),
                 &(params.l1_block_number.as_u64() as i32),
@@ -249,7 +251,13 @@ pub async fn insert_fdg_into_postgres(
     //let proposer_address_str = params.proposer_address.to_string();
     let proposer_address_str = format!("{:#x}", params.proposer_address);
 
-    let l2_block_number_i64 = params.l2_block_number.as_u64() as i64;
+    let l2_block_number_i64 = params.l2_block_number_safe.unwrap_or(0) as i64;
+    
+    // Log if we're using a fallback value
+    if params.l2_block_number_safe.is_none() {
+        eprintln!("Using fallback L2 block number 0 for dispute game {} (original: {})", 
+                 params.game_index, params.l2_block_number);
+    }
 
     let l2_state_root_hex_str: Option<String> =
             params.l2_state_root.as_ref().map(|h| format!("{:#x}", h));
@@ -344,7 +352,7 @@ pub async fn handle_opstack_fdg_events(
     network: &Network,
     l1_provider: Arc<Provider<Http>>,
     game_index: u64,
-) -> Result<OPStackDisputeGameParameters, ()> {
+) -> Result<OPStackDisputeGameParameters, eyre::Error> {
     let dispute_proxy_address: Address = Address::from(log.topics[1]).into();
     let game_type = {
         let mut bytes = [0u8; 32];
@@ -364,7 +372,7 @@ pub async fn handle_opstack_fdg_events(
         .await
         .map_err(|e| {
             eprintln!("status() failed: {e:?}");
-            ()
+            eyre!("status() failed: {e:?}")
         })?;
     let game_status: u64 = status_u8 as u64;
 
@@ -374,7 +382,7 @@ pub async fn handle_opstack_fdg_events(
         .await
         .map_err(|e| {
             eprintln!("created_at() failed: {e:?}");
-            ()
+            eyre!("created_at() failed: {e:?}")
         })?;
 
     // This is bacause OP Sepolia game contract dont have the gemaCreator method
@@ -387,7 +395,7 @@ pub async fn handle_opstack_fdg_events(
             .await
             .map_err(|e| {
                 eprintln!("game_creator() failed: {e:?}");
-                ()
+                eyre!("game_creator() failed: {e:?}")
             })?;
     }
 
@@ -423,18 +431,45 @@ pub async fn handle_opstack_fdg_events(
         .await
         .map_err(|e| {
             eprintln!("l2_block_number() failed: {e:?}");
-            ()
+            eyre!("l2_block_number() failed: {e:?}")
         })?;
 
+    // Check if L2 block number is within u64 range before proceeding
+    let l2_block_number_u64: u64 = match l2_block_number.try_into() {
+        Ok(num) => num,
+        Err(_) => {
+            eprintln!("L2 block number {} is too large for u64 (max u64: {}), skipping L2 data fetch", 
+                     l2_block_number, u64::MAX);
+            // Return early with None values for L2 data
+            return Ok(OPStackDisputeGameParameters {
+                game_index,
+                game_address: dispute_proxy_address,
+                game_type,
+                timestamp,
+                root_claim,
+                game_state: game_status,
+                proposer_address: game_creator,
+                l2_block_number,
+                l2_block_number_safe: None, // No safe version available
+                l2_state_root: None,
+                l2_withdrawal_storage_root: None,
+                l2_block_hash: None,
+                l1_timestamp: U64::from_big_endian(&log.data[..]),
+                l1_transaction_hash: Bytes::from(log.transaction_hash.unwrap().as_bytes().to_vec()),
+                l1_block_number: log.block_number.unwrap(),
+                l1_transaction_index: log.transaction_index.unwrap(),
+                l1_block_hash: Bytes::from(log.block_hash.unwrap().as_bytes().to_vec()),
+            });
+        }
+    };
 
-
-    // Geet the L2 block details from L2 RPC
+    // Get the L2 block details from L2 RPC
     let l2_rpc_url = std::env::var("L2_RPC_URL")
         .expect("L2_RPC_URL must be set.");
 
     let l2_rpc_fetcher = Fetcher::new(l2_rpc_url.to_string());
 
-    let l2_block_number_hex = format!("0x{:x}", l2_block_number);
+    let l2_block_number_hex = format!("0x{:x}", l2_block_number_u64);
     //let optimism_output = l2_rpc_fetcher.fetch_optimism_output_at_block(&l2_block_number_hex).await.unwrap();
     // let optimism_output = match l2_rpc_fetcher.fetch_optimism_output_at_block(&l2_block_number_hex).await? {
     //     Some(out) => { /* process */ }
@@ -463,15 +498,17 @@ pub async fn handle_opstack_fdg_events(
                 "fetch_optimism_output_at_block({}) failed: {:?}",
                 l2_block_number_hex, e
             );
-            return Err(()); // explicitly return () as error
+            // Instead of failing completely, continue with None values for L2 data
+            // This allows the dispute game to be indexed even if L2 data is unavailable
+            None
         }
     };
 
        let (l2_state_root, l2_withdrawal_storage_root, l2_block_hash) = match maybe_out {
            Some(out) => (
-               Some(parse_bytes("state_root", &out.state_root).map_err(|_| ())?),
-               Some(parse_bytes("withdrawal_storage_root", &out.withdrawal_storage_root).map_err(|_| ())?),
-               Some(parse_bytes("block_hash", &out.block_ref.hash).map_err(|_| ())?),
+               Some(parse_bytes("state_root", &out.state_root).map_err(|e| eyre!("Failed to parse state_root: {}", e))?),
+               Some(parse_bytes("withdrawal_storage_root", &out.withdrawal_storage_root).map_err(|e| eyre!("Failed to parse withdrawal_storage_root: {}", e))?),
+               Some(parse_bytes("block_hash", &out.block_ref.hash).map_err(|e| eyre!("Failed to parse block_hash: {}", e))?),
            ),
            None => (None, None, None),
        };
@@ -501,6 +538,7 @@ pub async fn handle_opstack_fdg_events(
             game_state: game_status,
             proposer_address: game_creator,
             l2_block_number,
+            l2_block_number_safe: Some(l2_block_number_u64), // Use the safe u64 version
             l2_state_root,
             l2_withdrawal_storage_root,
             l2_block_hash,

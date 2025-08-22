@@ -27,6 +27,10 @@ mod opstack;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // CRITICAL: This indexer is designed to panic and restart on any event handling
+    // or database insert failures to ensure data integrity and prevent broken index counting.
+    // This is intentional behavior - do not suppress these panics.
+    
     // Settup the environment variables
     dotenv().ok();
     let rpc_url: &str = &std::env::var("RPC_URL").expect("RPC_URL must be set.");
@@ -56,8 +60,10 @@ async fn main() -> Result<()> {
 
 
     // Set block number values to filter
-    let mut new_block_num = rpc_client.get_block_number().await? - block_delay;
-    let batch_size = network_config.batch_size.unwrap_or(new_block_num.as_u64());
+    // Get the latest block number and ensure we don't try to index beyond what's available
+    let _latest_block = rpc_client.get_block_number().await?; // Used for initialization, but not needed after
+    let mut new_block_num; // Will be initialized in the loop
+    let batch_size = network_config.batch_size.unwrap_or(50000); // Use a reasonable default if not specified
 
     // Establish a PostgreSQL connection
     let (pg_client, connection) = tokio_postgres::connect(db_url, NoTls)
@@ -140,18 +146,34 @@ async fn main() -> Result<()> {
     //     ChainName::Arbitrum | ChainName::ApeChain => "SendRootUpdated(bytes32,bytes32)",
     // };
 
-    let mut filter = Filter::new();
-        // .event(event_signature)
-        // .address(address)
-        // .from_block(from_block_num)
-        // .to_block(new_block_num);
+    // Filter will be created and used in the event processing loops
+    // let mut filter = Filter::new();
 
     // Loop to get the logs with time gap and with batch
     loop {
+        // Get the current latest block and apply block delay to avoid indexing recent blocks
+        let current_latest_block = rpc_client.get_block_number().await?;
+        let safe_block_number = if current_latest_block.as_u64() > block_delay.as_u64() {
+            current_latest_block - block_delay
+        } else {
+            U64([0]) // Fallback to 0 if block_delay is larger than current block
+        };
+        
+        // Update new_block_num to the safe block number
+        new_block_num = safe_block_number;
+        
+        // Ensure we don't try to index blocks that don't exist
+        if new_block_num.as_u64() < from_block_num_op.as_u64() {
+            println!("Waiting for more blocks to be available. Current: {}, From: {}", 
+                     new_block_num, from_block_num_op);
+            thread::sleep(poll_period_sec);
+            continue;
+        }
+        
         // Compute OP upper limit range
-        let block_gap_op = new_block_num.as_u64() - from_block_num_op.as_u64();
+        let block_gap_op = new_block_num.as_u64().saturating_sub(from_block_num_op.as_u64());
         let upper_limit_op = if block_gap_op > batch_size {
-            from_block_num_op.as_u64() + batch_size as u64 - 1
+            from_block_num_op.as_u64() + batch_size - 1
         } else {
             new_block_num.as_u64()
         };
@@ -168,7 +190,7 @@ async fn main() -> Result<()> {
                 if from_block_num_op.as_u64() <= effective_upper_limit_op {
                     table_name = base_table_name.clone();
                     let address = network_config.l1_contract.parse::<Address>()?;
-                    filter = Filter::new()
+                    let filter = Filter::new()
                         .event("OutputProposed(bytes32,uint256,uint256,uint256)")
                         .address(address)
                         .from_block(from_block_num_op)
@@ -181,11 +203,27 @@ async fn main() -> Result<()> {
                     );
 
                     for log in logs.iter() {
-                        let params = handle_opstack_events(log);
+                        let params = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                            handle_opstack_events(log)
+                        })) {
+                            Ok(params) => params,
+                            Err(panic_info) => {
+                                eprintln!("CRITICAL ERROR: handle_opstack_events panicked: {:?}", panic_info);
+                                eprintln!("This indicates a serious problem that could break the indexing system. PANICKING to ensure data integrity.");
+                                
+                                // Panic to force restart and prevent data corruption
+                                panic!("OPStack event handling panicked. This is a critical error that could break the index. Restarting to ensure data integrity. Panic info: {:?}", panic_info);
+                            }
+                        };
+                        
                         if let Err(err) =
                             opstack::insert_into_postgres(table_name.clone(), &pg_client, params).await
                         {
-                            eprintln!("Error inserting data into PostgreSQL: {:?}", err);
+                            eprintln!("CRITICAL ERROR: Failed to insert OPStack event into PostgreSQL: {:?}", err);
+                            eprintln!("This indicates a serious problem with the indexing system. PANICKING to ensure data integrity.");
+                            
+                            // Panic to force restart and prevent data corruption
+                            panic!("Database insert failed for OPStack event. This is a critical error that could corrupt the index. Restarting to ensure data integrity. Error: {:?}", err);
                         }
                     }
 
@@ -196,7 +234,7 @@ async fn main() -> Result<()> {
                 if from_block_num_op.as_u64() <= upper_limit_op {
                     table_name = base_table_name.clone();
                     let address = network_config.l1_contract.parse::<Address>()?;
-                    filter = Filter::new()
+                    let filter = Filter::new()
                         .event("SendRootUpdated(bytes32,bytes32)")
                         .address(address)
                         .from_block(from_block_num_op)
@@ -209,13 +247,24 @@ async fn main() -> Result<()> {
                     );
 
                     for log in logs.iter() {
-                        let params = handle_arbitrum_events(log, &chain_name, &chain_type)
-                            .await
-                            .unwrap();
+                        let params = match handle_arbitrum_events(log, &chain_name, &chain_type).await {
+                            Ok(params) => params,
+                            Err(err) => {
+                                eprintln!("CRITICAL ERROR: Failed to handle Arbitrum event: {:?}", err);
+                                eprintln!("This indicates a serious problem that could break the indexing system. PANICKING to ensure data integrity.");
+                                
+                                // Panic to force restart and prevent data corruption
+                                panic!("Arbitrum event handling failed. This is a critical error that could break the index. Restarting to ensure data integrity. Error: {:?}", err);
+                            }
+                        };
                         if let Err(err) =
                             arbitrum::insert_into_postgres(table_name.clone(), &pg_client, params).await
                         {
-                            eprintln!("Error inserting data into PostgreSQL: {:?}", err);
+                            eprintln!("CRITICAL ERROR: Failed to insert Arbitrum event into PostgreSQL: {:?}", err);
+                            eprintln!("This indicates a serious problem with the indexing system. PANICKING to ensure data integrity.");
+                            
+                            // Panic to force restart and prevent data corruption
+                            panic!("Database insert failed for Arbitrum event. This is a critical error that could corrupt the index. Restarting to ensure data integrity. Error: {:?}", err);
                         }
                     }
 
@@ -226,49 +275,75 @@ async fn main() -> Result<()> {
 
         // Process FDG events for Optimism mainnet in parallel to OP events
         if fdg_enabled {
-            let block_gap_fdg = new_block_num.as_u64() - from_block_num_fdg.as_u64();
-            let upper_limit_fdg = if block_gap_fdg > batch_size {
-                from_block_num_fdg.as_u64() + batch_size as u64 - 1
+            // Ensure we don't try to index FDG blocks that don't exist
+            if new_block_num.as_u64() < from_block_num_fdg.as_u64() {
+                println!("Waiting for more FDG blocks to be available. Current: {}, From: {}", 
+                         new_block_num, from_block_num_fdg);
             } else {
-                new_block_num.as_u64()
-            };
+                let block_gap_fdg = new_block_num.as_u64().saturating_sub(from_block_num_fdg.as_u64());
+                let upper_limit_fdg = if block_gap_fdg > batch_size {
+                    from_block_num_fdg.as_u64() + batch_size - 1
+                } else {
+                    new_block_num.as_u64()
+                };
 
-            let factory_addr = network_config
-                .dispute_game_factory_l1_contract
-                .as_ref()
-                .expect("dispute_game_factory_l1_contract must be set")
-                .parse::<Address>()?;
+                let factory_addr = network_config
+                    .dispute_game_factory_l1_contract
+                    .as_ref()
+                    .expect("dispute_game_factory_l1_contract must be set")
+                    .parse::<Address>()?;
 
-            table_name = fault_dispute_games_table_name.clone();
-            filter = Filter::new()
-                .event("DisputeGameCreated(address,uint32,bytes32)")
-                .address(factory_addr)
-                .from_block(from_block_num_fdg)
-                .to_block(U64([upper_limit_fdg]));
+                table_name = fault_dispute_games_table_name.clone();
+                let filter = Filter::new()
+                    .event("DisputeGameCreated(address,uint32,bytes32)")
+                    .address(factory_addr)
+                    .from_block(from_block_num_fdg)
+                    .to_block(U64([upper_limit_fdg]));
 
-            let logs = rpc_client.get_logs(&filter).await?;
-            println!(
-                "FDG events: from {from_block_num_fdg:?} to {upper_limit_fdg:?}, created {} games",
-                logs.iter().len()
-            );
+                let logs = rpc_client.get_logs(&filter).await?;
+                println!(
+                    "FDG events: from {from_block_num_fdg:?} to {upper_limit_fdg:?}, created {} games",
+                    logs.iter().len()
+                );
 
-            for log in logs.iter() {
-                match handle_opstack_fdg_events(log, &network, rpc_client.clone(), highest_fdg_index).await {
-                    Ok(params) => {
-                        if let Err(err) = opstack::insert_fdg_into_postgres(table_name.clone(), &pg_client, params).await {
-                            eprintln!("PostgreSQL insert error: {err:?}");
+                for log in logs.iter() {
+                    println!("Processing FDG event, current highest_fdg_index: {}", highest_fdg_index);
+                    match handle_opstack_fdg_events(log, &network, rpc_client.clone(), highest_fdg_index).await {
+                        Ok(params) => {
+                            println!("Successfully handled FDG event, attempting database insert...");
+                            if let Err(err) = opstack::insert_fdg_into_postgres(table_name.clone(), &pg_client, params).await {
+                                eprintln!("CRITICAL ERROR: PostgreSQL insert error: {err:?}");
+                                eprintln!("Game index NOT incremented due to database insert failure. Current index: {}", highest_fdg_index);
+                                eprintln!("This indicates a serious problem that could break index counting. PANICKING to ensure data integrity.");
+                                eprintln!("STOPPING ALL PROCESSING to prevent data corruption.");
+                                
+                                // Panic to force restart and prevent broken index counting
+                                panic!("Database insert failed for FDG event with game index {}. This is a critical error that could break index counting. Restarting to ensure data integrity. Error: {:?}", highest_fdg_index, err);
+                            } else {
+                                // Only increment game_index on successful database insert
+                                let old_index = highest_fdg_index;
+                                highest_fdg_index += 1;
+                                println!("Successfully processed FDG event with game_index: {} -> {}", old_index, highest_fdg_index);
+                            }
                         }
-                        highest_fdg_index += 1;
+                        Err(err) => {
+                            eprintln!("CRITICAL ERROR: Failed to handle DisputeGameCreated: {err:?}");
+                            eprintln!("Error details: {:?}", err);
+                            eprintln!("Game index NOT incremented due to event handling failure. Current index: {}", highest_fdg_index);
+                            eprintln!("This indicates a serious problem that could break index counting. PANICKING to ensure data integrity.");
+                            eprintln!("STOPPING ALL PROCESSING to prevent data corruption.");
+                            
+                            // Panic to force restart and prevent broken index counting
+                            panic!("FDG event handling failed for game index {}. This is a critical error that could break index counting. Restarting to ensure data integrity. Error: {:?}", highest_fdg_index, err);
+                        }
                     }
-                    Err(err) => eprintln!("Failed to handle DisputeGameCreated: {err:?}"),
                 }
-            }
 
-            from_block_num_fdg = U64([upper_limit_fdg + 1]);
+                from_block_num_fdg = U64([upper_limit_fdg + 1]);
+            }
         }
 
         // Sleep/poll update cadence
         thread::sleep(poll_period_sec);
-        new_block_num = rpc_client.get_block_number().await? - block_delay;
     }
 }
