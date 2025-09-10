@@ -9,5 +9,5 @@
   "transition_to_dispute_game_system_block": 5519680,
   "transition_to_dispute_game_system_l2_block": 9538200,
   "dispute_game_factory_l1_contract": "0x05F9613aDB30026FFd634f38e5C4dFd30a197Fa1",
-  "trusted_proposer_address": "0x49277EE36A024120Ee218127354c4a3591dc90A9"
+  "trusted_proposer_address": "0x0000000000000000000000000000000000000000"
 }
