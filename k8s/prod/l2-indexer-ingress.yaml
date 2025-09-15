@@ -1,0 +1,24 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: atlantic-ingress
+  annotations:
+    spec.ingressClassName: traefik
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+    - hosts:
+        - atlantic.api.herodotus.cloud
+      secretName: atlantic-tls
+  rules:
+    - host: atlantic.api.herodotus.cloud
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: atlantic-service
+                port:
+                  number: 8080    
