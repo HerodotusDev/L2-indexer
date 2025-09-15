@@ -1,25 +1,25 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: atlantic-server
+  name: l2-indexer
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: atlantic-server
+      app: l2-indexer
   template:
     metadata:
       labels:
-        app: atlantic-server
+        app: l2-indexer
     spec:
       imagePullSecrets:
         - name: dockerhub-secret           
       containers:
-        - name: atlantic
+        - name: l2-indexer
           image: <IMAGE>
           envFrom:
             - secretRef:
-                name: atlantic-server-secret
+                name: l2-indexer-secret
           resources:
             requests:
               cpu: '2'
@@ -39,35 +39,15 @@ spec:
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 5
-          volumeMounts:
-            - mountPath: '/atlantic/certs'
-              name: certs
-              readOnly: true
-            - mountPath: '/atlantic/.kube'
-              name: config
-              readOnly: true
-            - mountPath: '/atlantic/jobs'
-              name: atlantic-workers-configmap
-              readOnly: true       
-      volumes:
-        - name: certs
-          secret:
-            secretName: atlantic-certs
-        - name: config
-          secret:
-            secretName: config
-        - name: atlantic-workers-configmap
-          configMap:
-            name: atlantic-workers-configmap  
 ---    
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: atlantic-service
+  name: l2-indexer-service
 spec:
   selector:
-    app: atlantic-server
+    app: l2-indexer
   ports:
     - port: 8080
       targetPort: 8080
