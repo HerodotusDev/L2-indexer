@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: l2-indexer-micro-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: l2-indexer-micro-service
+  template:
+    metadata:
+      labels:
+        app: l2-indexer-micro-service
+    spec:
+      imagePullSecrets:
+        - name: dockerhub-secret           
+      containers:
+        - name: l2-indexer-micro-service
+          image: <IMAGE>
+          envFrom:
+            - secretRef:
+                name: l2-indexer-micro-service-secret
+          resources:
+            requests:
+              cpu: '2'
+              memory: '4G'
+            limits:
+              cpu: '2'
+              memory: '8G'
+          livenessProbe:
+            httpGet:
+              path: /is-alive
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /is-alive
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---    
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: l2-indexer-micro-service
+spec:
+  selector:
+    app: l2-indexer-micro-service
+  ports:
+    - port: 8000
+      targetPort: 8000
