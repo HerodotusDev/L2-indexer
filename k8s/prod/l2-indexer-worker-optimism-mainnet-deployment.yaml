@@ -27,18 +27,6 @@ spec:
             limits:
               cpu: '2'
               memory: '8G'
-          livenessProbe:
-            httpGet:
-              path: /is-alive
-              port: 8080
-            initialDelaySeconds: 10
-            periodSeconds: 10
-          readinessProbe:
-            httpGet:
-              path: /is-alive
-              port: 8080
-            initialDelaySeconds: 5
-            periodSeconds: 5
 ---    
 ---
 apiVersion: v1
