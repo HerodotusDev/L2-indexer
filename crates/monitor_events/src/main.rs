@@ -1,10 +1,10 @@
-use ::common::{get_network_config, Network, ChainName, ChainType};
+use ::common::{get_network_config, ChainName, ChainType, Network};
 use arbitrum::create_arbitrum_table_if_not_exists;
 use dotenv::dotenv;
 use ethers::prelude::*;
 use eyre::Result;
-use opstack::create_opstack_table_if_not_exists;
 use opstack::create_opstack_dispute_games_table_if_not_exists;
+use opstack::create_opstack_table_if_not_exists;
 use opstack::get_highest_game_index;
 
 use std::{
@@ -16,9 +16,8 @@ use std::{
 use tokio_postgres::NoTls;
 
 use crate::{
-    arbitrum::handle_arbitrum_events,
-    opstack::handle_opstack_events,
-    opstack::handle_opstack_fdg_events
+    arbitrum::handle_arbitrum_events, opstack::handle_opstack_events,
+    opstack::handle_opstack_fdg_events,
 };
 
 mod arbitrum;
@@ -30,19 +29,20 @@ async fn main() -> Result<()> {
     // CRITICAL: This indexer is designed to panic and restart on any event handling
     // or database insert failures to ensure data integrity and prevent broken index counting.
     // This is intentional behavior - do not suppress these panics.
-    
+
     // Settup the environment variables
     dotenv().ok();
     let rpc_url: &str = &std::env::var("RPC_URL").expect("RPC_URL must be set.");
     let chain_name_str = std::env::var("CHAIN_NAME").expect("CHAIN_NAME must be set.");
     let chain_type_str = std::env::var("CHAIN_TYPE").expect("CHAIN_TYPE must be set.");
 
-    let chain_name = ChainName::from_str(&chain_name_str)
-        .expect("Invalid CHAIN_NAME");
-    let chain_type = ChainType::from_str(&chain_type_str)
-        .expect("Invalid CHAIN_TYPE");
+    let chain_name = ChainName::from_str(&chain_name_str).expect("Invalid CHAIN_NAME");
+    let chain_type = ChainType::from_str(&chain_type_str).expect("Invalid CHAIN_TYPE");
 
-    let network = Network { chain_name, chain_type };
+    let network = Network {
+        chain_name,
+        chain_type,
+    };
 
     let db_url: &str = &std::env::var("DB_URL").expect("DB_URL must be set.");
     let provider = Provider::<Http>::try_from(rpc_url)?;
@@ -56,8 +56,6 @@ async fn main() -> Result<()> {
     let block_delay: U64 = U64([block_delay]);
     let poll_period_sec: Duration = time::Duration::from_secs(poll_period_sec);
     //let address: Address = network_config.l1_contract.parse()?;
-
-
 
     // Set block number values to filter
     // Get the latest block number and ensure we don't try to index beyond what's available
@@ -74,7 +72,6 @@ async fn main() -> Result<()> {
             eprintln!("PostgreSQL connection error: {}", e);
         }
     });
-
 
     let mut from_block_num_op = match chain_name {
         ChainName::Optimism | ChainName::Base | ChainName::Zora | ChainName::WorldChain => {
@@ -93,51 +90,47 @@ async fn main() -> Result<()> {
     // Enable FDG indexing stream for Optimism Mainnet so we can backfill
     // any games that may have been created before the transition block,
     // while still retaining OutputProposed indexing before the transition.
-    let fdg_enabled = chain_name == ChainName::Optimism && (
-        chain_type == ChainType::Mainnet ||  chain_type == ChainType::Sepolia
-    );
+    let fdg_enabled = chain_name == ChainName::Optimism
+        && (chain_type == ChainType::Mainnet || chain_type == ChainType::Sepolia);
 
     // Always start from the 0th game index by default
     let mut highest_fdg_index = 0u64;
     let fault_dispute_games_table_name = format!("{}_fault_dispute_games", network_config.name);
-    
+
     // Separate FDG from-block tracking
     let mut from_block_num_fdg: U64 = U64([0]);
 
     if fdg_enabled {
-            println!(
-                "already using FDG index mode"
-            );
-            // Create table if needed and get the max l1_block_number if any rows exist
-            let from_block_num_fdg_opt =
-                create_opstack_dispute_games_table_if_not_exists(
-                    fault_dispute_games_table_name.clone(),
-                    &pg_client,
-                )
-                .await?;                 // propagate DB error if any
+        println!("already using FDG index mode");
+        // Create table if needed and get the max l1_block_number if any rows exist
+        let from_block_num_fdg_opt = create_opstack_dispute_games_table_if_not_exists(
+            fault_dispute_games_table_name.clone(),
+            &pg_client,
+        )
+        .await?; // propagate DB error if any
 
-            // If FDG has been indexed before, continue from the next block;
-            // otherwise start from the dispute game contract deployment block
-            from_block_num_fdg = match from_block_num_fdg_opt {
-                Some(max_l1_block) => U64::from((max_l1_block + 1) as u64),
-                None => U64([network_config.l1_dispute_game_contract_deployment_block.unwrap_or(0)]),
-            };
+        // If FDG has been indexed before, continue from the next block;
+        // otherwise start from the dispute game contract deployment block
+        from_block_num_fdg = match from_block_num_fdg_opt {
+            Some(max_l1_block) => U64::from((max_l1_block + 1) as u64),
+            None => U64([network_config
+                .l1_dispute_game_contract_deployment_block
+                .unwrap_or(0)]),
+        };
 
-            // Only applicable for FDG enabled L2 chains
+        // Only applicable for FDG enabled L2 chains
 
-            let highest_fdg_index_db = get_highest_game_index(&fault_dispute_games_table_name, &pg_client).await?;
-            // If table has rows, continue from the next index; otherwise start at 0
-            highest_fdg_index = match from_block_num_fdg_opt {
-                Some(_) => highest_fdg_index_db.saturating_add(1),
-                None => 0,
-            };
-            println!("Highest game_index: {}", highest_fdg_index);
+        let highest_fdg_index_db =
+            get_highest_game_index(&fault_dispute_games_table_name, &pg_client).await?;
+        // If table has rows, continue from the next index; otherwise start at 0
+        highest_fdg_index = match from_block_num_fdg_opt {
+            Some(_) => highest_fdg_index_db.saturating_add(1),
+            None => 0,
+        };
+        println!("Highest game_index: {}", highest_fdg_index);
     }
 
-    println!(
-        "starting indexing from blocks op={from_block_num_op:?}, fdg={from_block_num_fdg:?}"
-    );
-
+    println!("starting indexing from blocks op={from_block_num_op:?}, fdg={from_block_num_fdg:?}");
 
     // let event_signature = match chain_name {
     //     ChainName::Optimism | ChainName::Base | ChainName::Zora | ChainName::WorldChain => {
@@ -158,20 +151,24 @@ async fn main() -> Result<()> {
         } else {
             U64([0]) // Fallback to 0 if block_delay is larger than current block
         };
-        
+
         // Update new_block_num to the safe block number
         new_block_num = safe_block_number;
-        
+
         // Ensure we don't try to index blocks that don't exist
         if new_block_num.as_u64() < from_block_num_op.as_u64() {
-            println!("Waiting for more blocks to be available. Current: {}, From: {}", 
-                     new_block_num, from_block_num_op);
+            println!(
+                "Waiting for more blocks to be available. Current: {}, From: {}",
+                new_block_num, from_block_num_op
+            );
             thread::sleep(poll_period_sec);
             continue;
         }
-        
+
         // Compute OP upper limit range
-        let block_gap_op = new_block_num.as_u64().saturating_sub(from_block_num_op.as_u64());
+        let block_gap_op = new_block_num
+            .as_u64()
+            .saturating_sub(from_block_num_op.as_u64());
         let upper_limit_op = if block_gap_op > batch_size {
             from_block_num_op.as_u64() + batch_size - 1
         } else {
@@ -203,25 +200,29 @@ async fn main() -> Result<()> {
                     );
 
                     for log in logs.iter() {
-                        let params = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                            handle_opstack_events(log)
-                        })) {
+                        let params = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+                            || handle_opstack_events(log),
+                        )) {
                             Ok(params) => params,
                             Err(panic_info) => {
-                                eprintln!("CRITICAL ERROR: handle_opstack_events panicked: {:?}", panic_info);
+                                eprintln!(
+                                    "CRITICAL ERROR: handle_opstack_events panicked: {:?}",
+                                    panic_info
+                                );
                                 eprintln!("This indicates a serious problem that could break the indexing system. PANICKING to ensure data integrity.");
-                                
+
                                 // Panic to force restart and prevent data corruption
                                 panic!("OPStack event handling panicked. This is a critical error that could break the index. Restarting to ensure data integrity. Panic info: {:?}", panic_info);
                             }
                         };
-                        
+
                         if let Err(err) =
-                            opstack::insert_into_postgres(table_name.clone(), &pg_client, params).await
+                            opstack::insert_into_postgres(table_name.clone(), &pg_client, params)
+                                .await
                         {
                             eprintln!("CRITICAL ERROR: Failed to insert OPStack event into PostgreSQL: {:?}", err);
                             eprintln!("This indicates a serious problem with the indexing system. PANICKING to ensure data integrity.");
-                            
+
                             // Panic to force restart and prevent data corruption
                             panic!("Database insert failed for OPStack event. This is a critical error that could corrupt the index. Restarting to ensure data integrity. Error: {:?}", err);
                         }
@@ -247,22 +248,28 @@ async fn main() -> Result<()> {
                     );
 
                     for log in logs.iter() {
-                        let params = match handle_arbitrum_events(log, &chain_name, &chain_type).await {
+                        let params = match handle_arbitrum_events(log, &chain_name, &chain_type)
+                            .await
+                        {
                             Ok(params) => params,
                             Err(err) => {
-                                eprintln!("CRITICAL ERROR: Failed to handle Arbitrum event: {:?}", err);
+                                eprintln!(
+                                    "CRITICAL ERROR: Failed to handle Arbitrum event: {:?}",
+                                    err
+                                );
                                 eprintln!("This indicates a serious problem that could break the indexing system. PANICKING to ensure data integrity.");
-                                
+
                                 // Panic to force restart and prevent data corruption
                                 panic!("Arbitrum event handling failed. This is a critical error that could break the index. Restarting to ensure data integrity. Error: {:?}", err);
                             }
                         };
                         if let Err(err) =
-                            arbitrum::insert_into_postgres(table_name.clone(), &pg_client, params).await
+                            arbitrum::insert_into_postgres(table_name.clone(), &pg_client, params)
+                                .await
                         {
                             eprintln!("CRITICAL ERROR: Failed to insert Arbitrum event into PostgreSQL: {:?}", err);
                             eprintln!("This indicates a serious problem with the indexing system. PANICKING to ensure data integrity.");
-                            
+
                             // Panic to force restart and prevent data corruption
                             panic!("Database insert failed for Arbitrum event. This is a critical error that could corrupt the index. Restarting to ensure data integrity. Error: {:?}", err);
                         }
@@ -277,10 +284,14 @@ async fn main() -> Result<()> {
         if fdg_enabled {
             // Ensure we don't try to index FDG blocks that don't exist
             if new_block_num.as_u64() < from_block_num_fdg.as_u64() {
-                println!("Waiting for more FDG blocks to be available. Current: {}, From: {}", 
-                         new_block_num, from_block_num_fdg);
+                println!(
+                    "Waiting for more FDG blocks to be available. Current: {}, From: {}",
+                    new_block_num, from_block_num_fdg
+                );
             } else {
-                let block_gap_fdg = new_block_num.as_u64().saturating_sub(from_block_num_fdg.as_u64());
+                let block_gap_fdg = new_block_num
+                    .as_u64()
+                    .saturating_sub(from_block_num_fdg.as_u64());
                 let upper_limit_fdg = if block_gap_fdg > batch_size {
                     from_block_num_fdg.as_u64() + batch_size - 1
                 } else {
@@ -307,32 +318,55 @@ async fn main() -> Result<()> {
                 );
 
                 for log in logs.iter() {
-                    println!("Processing FDG event, current highest_fdg_index: {}", highest_fdg_index);
-                    match handle_opstack_fdg_events(log, &network, rpc_client.clone(), highest_fdg_index).await {
+                    println!(
+                        "Processing FDG event, current highest_fdg_index: {}",
+                        highest_fdg_index
+                    );
+                    match handle_opstack_fdg_events(
+                        log,
+                        &network,
+                        rpc_client.clone(),
+                        highest_fdg_index,
+                    )
+                    .await
+                    {
                         Ok(params) => {
-                            println!("Successfully handled FDG event, attempting database insert...");
-                            if let Err(err) = opstack::insert_fdg_into_postgres(table_name.clone(), &pg_client, params).await {
+                            println!(
+                                "Successfully handled FDG event, attempting database insert..."
+                            );
+                            if let Err(err) = opstack::insert_fdg_into_postgres(
+                                table_name.clone(),
+                                &pg_client,
+                                params,
+                            )
+                            .await
+                            {
                                 eprintln!("CRITICAL ERROR: PostgreSQL insert error: {err:?}");
                                 eprintln!("Game index NOT incremented due to database insert failure. Current index: {}", highest_fdg_index);
                                 eprintln!("This indicates a serious problem that could break index counting. PANICKING to ensure data integrity.");
                                 eprintln!("STOPPING ALL PROCESSING to prevent data corruption.");
-                                
+
                                 // Panic to force restart and prevent broken index counting
                                 panic!("Database insert failed for FDG event with game index {}. This is a critical error that could break index counting. Restarting to ensure data integrity. Error: {:?}", highest_fdg_index, err);
                             } else {
                                 // Only increment game_index on successful database insert
                                 let old_index = highest_fdg_index;
                                 highest_fdg_index += 1;
-                                println!("Successfully processed FDG event with game_index: {} -> {}", old_index, highest_fdg_index);
+                                println!(
+                                    "Successfully processed FDG event with game_index: {} -> {}",
+                                    old_index, highest_fdg_index
+                                );
                             }
                         }
                         Err(err) => {
-                            eprintln!("CRITICAL ERROR: Failed to handle DisputeGameCreated: {err:?}");
+                            eprintln!(
+                                "CRITICAL ERROR: Failed to handle DisputeGameCreated: {err:?}"
+                            );
                             eprintln!("Error details: {:?}", err);
                             eprintln!("Game index NOT incremented due to event handling failure. Current index: {}", highest_fdg_index);
                             eprintln!("This indicates a serious problem that could break index counting. PANICKING to ensure data integrity.");
                             eprintln!("STOPPING ALL PROCESSING to prevent data corruption.");
-                            
+
                             // Panic to force restart and prevent broken index counting
                             panic!("FDG event handling failed for game index {}. This is a critical error that could break index counting. Restarting to ensure data integrity. Error: {:?}", highest_fdg_index, err);
                         }
