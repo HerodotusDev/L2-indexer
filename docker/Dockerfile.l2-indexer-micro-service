@@ -13,6 +13,7 @@ WORKDIR /app
 # Copy workspace files
 COPY Cargo.toml Cargo.lock ./
 COPY crates/common ./crates/common
+COPY crates/monitor_events ./crates/monitor_events
 COPY crates/l2-micro-service ./crates/l2-micro-service
 
 # Build the application
