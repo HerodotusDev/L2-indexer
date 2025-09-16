@@ -1,0 +1,3 @@
+app_names: ["l2-indexer-micro-service","l2-indexer-worker-optimism-mainnet","l2-indexer-worker-optimism-sepolia"]
+version_file: ./Cargo.toml
+namespace: l2-indexer

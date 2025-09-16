@@ -1,0 +1,15 @@
+# .github/workflows/main.yml
+name: Build and deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  call-deploy:
+    uses: HerodotusDev/cicd/.github/workflows/build-and-deploy.yaml@main

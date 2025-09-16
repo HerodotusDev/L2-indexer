@@ -50,7 +50,7 @@ pub async fn create_arbitrum_table_if_not_exists(
         }
     } else {
         let create_table_query = format!(
-            "CREATE TABLE IF NOT EXISTS {} ( 
+            "CREATE TABLE IF NOT EXISTS {} (
                 id                      SERIAL PRIMARY KEY,
                 l2_output_root          VARCHAR NOT NULL,
                 l2_block_hash           VARCHAR NOT NULL,
@@ -123,7 +123,7 @@ pub async fn handle_arbitrum_events(
     let arbitrum_fetcher = Fetcher::new(arbitrum_rpc_url.to_string());
 
     let block = arbitrum_fetcher
-        .fetch_block_by_number(&l2_block_hash.to_string())
+        .fetch_block_by_hash(&l2_block_hash.to_string())
         .await?;
 
     let dec_number = u64::from_str_radix(&block.number.as_str()[2..], 16).unwrap();

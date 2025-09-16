@@ -1,0 +1,48 @@
+# Multi-stage build for l2-micro-service
+FROM rust:1.75-slim as builder
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy workspace files
+COPY Cargo.toml Cargo.lock ./
+COPY crates/common ./crates/common
+COPY crates/l2-micro-service ./crates/l2-micro-service
+
+# Build the application
+RUN cargo build --release --bin l2-micro-service
+
+# Runtime stage
+FROM debian:bookworm-slim
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create app user
+RUN useradd -r -s /bin/false appuser
+
+# Set working directory
+WORKDIR /app
+
+# Copy the binary from builder stage
+COPY --from=builder /app/target/release/l2-micro-service /app/l2-micro-service
+
+# Change ownership to app user
+RUN chown -R appuser:appuser /app
+
+# Switch to app user
+USER appuser
+
+# Expose port
+EXPOSE 8000
+
+# Run the application
+CMD ["./l2-micro-service"]

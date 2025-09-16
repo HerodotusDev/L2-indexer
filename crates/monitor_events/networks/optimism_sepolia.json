@@ -2,7 +2,12 @@
   "name": "optimism_sepolia",
   "l1_contract": "0x90E9c4f8a994a250F6aEfd61CAFb4F2e895D458F",
   "block_delay": 20,
-  "poll_period_sec": 10800,
+  "poll_period_sec": 10,
   "batch_size": 50000,
-  "l1_contract_deployment_block": 4071248
+  "l1_contract_deployment_block": 4071248,
+  "l1_dispute_game_contract_deployment_block": 5395240,
+  "transition_to_dispute_game_system_block": 5519680,
+  "transition_to_dispute_game_system_l2_block": 9538200,
+  "dispute_game_factory_l1_contract": "0x05F9613aDB30026FFd634f38e5C4dFd30a197Fa1",
+  "trusted_proposer_address": "0x0000000000000000000000000000000000000000"
 }
