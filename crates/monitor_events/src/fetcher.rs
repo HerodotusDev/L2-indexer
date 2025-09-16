@@ -1,10 +1,10 @@
 use eyre::{eyre, Error, OptionExt, Result};
 
+use reqwest::StatusCode;
 use reqwest::{header, Client};
 use serde::{Deserialize, Serialize};
 use serde_json::{from_value, json, Value};
 use std::sync::Arc;
-use reqwest::StatusCode;
 
 #[derive(Debug, Deserialize)]
 struct RpcError {
@@ -18,8 +18,6 @@ struct RpcResponse<T> {
     #[serde(default)]
     error: Option<RpcError>,
 }
-
-
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -45,7 +43,6 @@ pub struct EvmBlockHeaderFromRpc {
     pub base_fee_per_gas: Option<String>,
     pub withdrawals_root: Option<String>,
 }
-
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -208,7 +205,8 @@ impl Fetcher {
             "id": 1,
         });
 
-        let resp = self.client
+        let resp = self
+            .client
             .post(&self.url)
             .header(reqwest::header::CONTENT_TYPE, "application/json")
             .json(&rpc_request)
@@ -243,5 +241,4 @@ impl Fetcher {
 
         Ok(parsed.result)
     }
-
 }

@@ -1,18 +1,12 @@
-use common::{Network, get_network_config, ChainType};
+use common::{get_network_config, ChainType, Network};
 
 use crate::fetcher::Fetcher;
 use ethers::prelude::*;
- 
-abigen!(
-    DisputeGame,
-    "abi/DisputeGame.json"
-);
-use std::str::FromStr;
-use std::{
-    sync::Arc,
-    convert::TryInto,
-};
+
+abigen!(DisputeGame, "abi/DisputeGame.json");
 use eyre::{eyre, Result};
+use std::str::FromStr;
+use std::{convert::TryInto, sync::Arc};
 
 fn parse_bytes(name: &str, s: &str) -> eyre::Result<Bytes> {
     Bytes::from_str(s).map_err(|_| eyre!("invalid {name} hex: {s}"))
@@ -37,10 +31,10 @@ pub struct OPStackDisputeGameParameters {
     root_claim: Bytes,
     game_state: u64,
     proposer_address: Address,
-    l2_block_number: U256, // Keep original for reference
+    l2_block_number: U256,             // Keep original for reference
     l2_block_number_safe: Option<u64>, // Safe u64 version for database
     l2_state_root: Option<Bytes>,
-    l2_withdrawal_storage_root:Option<Bytes>,
+    l2_withdrawal_storage_root: Option<Bytes>,
     l2_block_hash: Option<Bytes>,
     l1_timestamp: U64,
     l1_transaction_hash: Bytes,
@@ -103,7 +97,6 @@ pub async fn create_opstack_table_if_not_exists(
         Ok(None)
     }
 }
-
 
 /// A function that creates a table if it doesn't exist, and returns the max block number in the table if it exists.
 /// Parameters:
@@ -213,7 +206,6 @@ pub async fn insert_fdg_into_postgres(
     client: &tokio_postgres::Client,
     params: OPStackDisputeGameParameters,
 ) -> Result<(), tokio_postgres::Error> {
-
     let insert_query = format!(
         "INSERT INTO {} (
             game_index,
@@ -241,7 +233,7 @@ pub async fn insert_fdg_into_postgres(
     );
 
     let game_index_i64 = params.game_index as i64;
-   //let game_address_str = params.game_address.to_string();
+    //let game_address_str = params.game_address.to_string();
     let game_address_str = format!("{:#x}", params.game_address);
     let game_type_i32 = params.game_type as i64;
     let timestamp_i64 = params.timestamp as i64;
@@ -252,20 +244,23 @@ pub async fn insert_fdg_into_postgres(
     let proposer_address_str = format!("{:#x}", params.proposer_address);
 
     let l2_block_number_i64 = params.l2_block_number_safe.unwrap_or(0) as i64;
-    
+
     // Log if we're using a fallback value
     if params.l2_block_number_safe.is_none() {
-        eprintln!("Using fallback L2 block number 0 for dispute game {} (original: {})", 
-                 params.game_index, params.l2_block_number);
+        eprintln!(
+            "Using fallback L2 block number 0 for dispute game {} (original: {})",
+            params.game_index, params.l2_block_number
+        );
     }
 
     let l2_state_root_hex_str: Option<String> =
-            params.l2_state_root.as_ref().map(|h| format!("{:#x}", h));
-    let l2_withdrawal_storage_root_hex_str: Option<String> =
-            params.l2_withdrawal_storage_root.as_ref().map(|h| format!("{:#x}", h));
+        params.l2_state_root.as_ref().map(|h| format!("{:#x}", h));
+    let l2_withdrawal_storage_root_hex_str: Option<String> = params
+        .l2_withdrawal_storage_root
+        .as_ref()
+        .map(|h| format!("{:#x}", h));
     let l2_block_hash_hex_str: Option<String> =
-            params.l2_block_hash.as_ref().map(|h| format!("{:#x}", h));
-
+        params.l2_block_hash.as_ref().map(|h| format!("{:#x}", h));
 
     // let l2_state_root_str = format!("{:#x}", params.l2_state_root);
     // let l2_withdrawal_storage_root_str = format!("{:#x}", params.l2_withdrawal_storage_root);
@@ -319,7 +314,6 @@ pub async fn get_highest_game_index(
     }
 }
 
-
 pub fn handle_opstack_events(log: &Log) -> OPStackParameters {
     let l2_output_root = Bytes::from(log.topics[1].as_bytes().to_vec());
     let l2_output_index = U256::from_big_endian(log.topics[2].as_bytes());
@@ -346,7 +340,6 @@ pub fn handle_opstack_events(log: &Log) -> OPStackParameters {
     }
 }
 
-
 pub async fn handle_opstack_fdg_events(
     log: &Log,
     network: &Network,
@@ -361,42 +354,28 @@ pub async fn handle_opstack_fdg_events(
     };
     let root_claim = Bytes::from(log.topics[3].as_bytes().to_vec());
 
-    let dispute_game = DisputeGame::new(
-        dispute_proxy_address,
-        l1_provider.clone()
-    );
+    let dispute_game = DisputeGame::new(dispute_proxy_address, l1_provider.clone());
 
-    let status_u8: u8 = dispute_game
-        .status()
-        .call()
-        .await
-        .map_err(|e| {
-            eprintln!("status() failed: {e:?}");
-            eyre!("status() failed: {e:?}")
-        })?;
+    let status_u8: u8 = dispute_game.status().call().await.map_err(|e| {
+        eprintln!("status() failed: {e:?}");
+        eyre!("status() failed: {e:?}")
+    })?;
     let game_status: u64 = status_u8 as u64;
 
-    let timestamp: u64 = dispute_game
-        .created_at()
-        .call()
-        .await
-        .map_err(|e| {
-            eprintln!("created_at() failed: {e:?}");
-            eyre!("created_at() failed: {e:?}")
-        })?;
+    let timestamp: u64 = dispute_game.created_at().call().await.map_err(|e| {
+        eprintln!("created_at() failed: {e:?}");
+        eyre!("created_at() failed: {e:?}")
+    })?;
 
     // This is bacause OP Sepolia game contract dont have the gemaCreator method
-    let mut game_creator: Address = Address::from_str("0x0000000000000000000000000000000000000000").unwrap();
-    
+    let mut game_creator: Address =
+        Address::from_str("0x0000000000000000000000000000000000000000").unwrap();
+
     if network.chain_type == ChainType::Mainnet {
-        game_creator = dispute_game
-            .game_creator()
-            .call()
-            .await
-            .map_err(|e| {
-                eprintln!("game_creator() failed: {e:?}");
-                eyre!("game_creator() failed: {e:?}")
-            })?;
+        game_creator = dispute_game.game_creator().call().await.map_err(|e| {
+            eprintln!("game_creator() failed: {e:?}");
+            eyre!("game_creator() failed: {e:?}")
+        })?;
     }
 
     let network_config = get_network_config(network.chain_type, network.chain_name);
@@ -412,7 +391,8 @@ pub async fn handle_opstack_fdg_events(
     };
 
     println!(
-       "Fetched dispute game at address {:#x}", dispute_proxy_address
+        "Fetched dispute game at address {:#x}",
+        dispute_proxy_address
     );
 
     if !(game_status == 2 || (is_trusted_proposer && (game_status == 0 || game_status == 2))) {
@@ -424,22 +404,20 @@ pub async fn handle_opstack_fdg_events(
         //return Err(eyre::eyre!("Dispute game not finalized (status != 2 and not trusted proposer with status 0 or 2)"));
     }
 
-
-    let l2_block_number: U256 = dispute_game
-        .l_2_block_number()
-        .call()
-        .await
-        .map_err(|e| {
-            eprintln!("l2_block_number() failed: {e:?}");
-            eyre!("l2_block_number() failed: {e:?}")
-        })?;
+    let l2_block_number: U256 = dispute_game.l_2_block_number().call().await.map_err(|e| {
+        eprintln!("l2_block_number() failed: {e:?}");
+        eyre!("l2_block_number() failed: {e:?}")
+    })?;
 
     // Check if L2 block number is within u64 range before proceeding
     let l2_block_number_u64: u64 = match l2_block_number.try_into() {
         Ok(num) => num,
         Err(_) => {
-            eprintln!("L2 block number {} is too large for u64 (max u64: {}), skipping L2 data fetch", 
-                     l2_block_number, u64::MAX);
+            eprintln!(
+                "L2 block number {} is too large for u64 (max u64: {}), skipping L2 data fetch",
+                l2_block_number,
+                u64::MAX
+            );
             // Return early with None values for L2 data
             return Ok(OPStackDisputeGameParameters {
                 game_index,
@@ -464,8 +442,7 @@ pub async fn handle_opstack_fdg_events(
     };
 
     // Get the L2 block details from L2 RPC
-    let l2_rpc_url = std::env::var("L2_RPC_URL")
-        .expect("L2_RPC_URL must be set.");
+    let l2_rpc_url = std::env::var("L2_RPC_URL").expect("L2_RPC_URL must be set.");
 
     let l2_rpc_fetcher = Fetcher::new(l2_rpc_url.to_string());
 
@@ -504,14 +481,23 @@ pub async fn handle_opstack_fdg_events(
         }
     };
 
-       let (l2_state_root, l2_withdrawal_storage_root, l2_block_hash) = match maybe_out {
-           Some(out) => (
-               Some(parse_bytes("state_root", &out.state_root).map_err(|e| eyre!("Failed to parse state_root: {}", e))?),
-               Some(parse_bytes("withdrawal_storage_root", &out.withdrawal_storage_root).map_err(|e| eyre!("Failed to parse withdrawal_storage_root: {}", e))?),
-               Some(parse_bytes("block_hash", &out.block_ref.hash).map_err(|e| eyre!("Failed to parse block_hash: {}", e))?),
-           ),
-           None => (None, None, None),
-       };
+    let (l2_state_root, l2_withdrawal_storage_root, l2_block_hash) = match maybe_out {
+        Some(out) => (
+            Some(
+                parse_bytes("state_root", &out.state_root)
+                    .map_err(|e| eyre!("Failed to parse state_root: {}", e))?,
+            ),
+            Some(
+                parse_bytes("withdrawal_storage_root", &out.withdrawal_storage_root)
+                    .map_err(|e| eyre!("Failed to parse withdrawal_storage_root: {}", e))?,
+            ),
+            Some(
+                parse_bytes("block_hash", &out.block_ref.hash)
+                    .map_err(|e| eyre!("Failed to parse block_hash: {}", e))?,
+            ),
+        ),
+        None => (None, None, None),
+    };
 
     // Example insert (VARCHAR columns; store hex strings). Assumes columns are NULLable.
     // let l2_state_root_hex: Option<String> =
@@ -521,31 +507,29 @@ pub async fn handle_opstack_fdg_events(
     // let l2_block_hash_hex: Option<String> =
     //     l2_block_hash.as_ref().map(|b| format!("0x{}", hex::encode(b)));
 
-
     let l1_timestamp = U64::from_big_endian(&log.data[..]);
     let l1_transaction_hash = Bytes::from(log.transaction_hash.unwrap().as_bytes().to_vec());
     let l1_block_number = log.block_number.unwrap();
     let l1_transaction_index = log.transaction_index.unwrap();
     let l1_block_hash = Bytes::from(log.block_hash.unwrap().as_bytes().to_vec());
 
-
     Ok(OPStackDisputeGameParameters {
-            game_index,
-            game_address: dispute_proxy_address,
-            game_type,
-            timestamp,
-            root_claim,
-            game_state: game_status,
-            proposer_address: game_creator,
-            l2_block_number,
-            l2_block_number_safe: Some(l2_block_number_u64), // Use the safe u64 version
-            l2_state_root,
-            l2_withdrawal_storage_root,
-            l2_block_hash,
-            l1_timestamp,
-            l1_transaction_hash,
-            l1_block_number,
-            l1_transaction_index,
-            l1_block_hash,
+        game_index,
+        game_address: dispute_proxy_address,
+        game_type,
+        timestamp,
+        root_claim,
+        game_state: game_status,
+        proposer_address: game_creator,
+        l2_block_number,
+        l2_block_number_safe: Some(l2_block_number_u64), // Use the safe u64 version
+        l2_state_root,
+        l2_withdrawal_storage_root,
+        l2_block_hash,
+        l1_timestamp,
+        l1_transaction_hash,
+        l1_block_number,
+        l1_transaction_index,
+        l1_block_hash,
     })
 }
