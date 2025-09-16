@@ -3,7 +3,7 @@ use serde::Deserialize;
 use std::str::FromStr;
 
 /// A chain name
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum ChainName {
     Arbitrum,
     ApeChain,
@@ -43,7 +43,7 @@ impl FromStr for ChainName {
 }
 
 /// A chain name
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum ChainType {
     Mainnet,
     Goerli,
@@ -104,13 +104,18 @@ impl FromStr for Network {
 
 /// A struct that represents the Networks struct in the JSON file
 #[derive(Debug, Deserialize)]
-pub struct Networks {
+pub struct NetworkConfig {
     pub name: String,
     pub l1_contract: String,
     pub l1_contract_deployment_block: u64,
     pub block_delay: u64,
     pub poll_period_sec: u64,
     pub batch_size: Option<u64>,
+    pub dispute_game_factory_l1_contract: Option<String>,
+    pub l1_dispute_game_contract_deployment_block: Option<u64>,
+    pub transition_to_dispute_game_system_block: Option<u64>,
+    pub transition_to_dispute_game_system_l2_block: Option<u64>,
+    pub trusted_proposer_address: Option<String>,
 }
 
 /// A builder that gets config from JSON and returns Config.
@@ -118,7 +123,7 @@ pub struct Networks {
 /// * network_config: The name of the network want to get from JSON
 /// Returns:
 /// * Networks struct that contains all the network config data
-pub fn get_network_config(chain_type: ChainType, chain_name: ChainName) -> Networks {
+pub fn get_network_config(chain_type: ChainType, chain_name: ChainName) -> NetworkConfig {
     let network = Network {
         chain_name,
         chain_type,
@@ -132,4 +137,16 @@ pub fn get_network_config(chain_type: ChainType, chain_name: ChainName) -> Netwo
         .build()
         .unwrap();
     config.try_deserialize().unwrap()
+}
+
+pub fn create_network_from_strings(
+    chain_name_str: &str,
+    chain_type_str: &str,
+) -> Result<Network, eyre::Error> {
+    let chain_name = ChainName::from_str(chain_name_str)?;
+    let chain_type = ChainType::from_str(chain_type_str)?;
+    Ok(Network {
+        chain_name,
+        chain_type,
+    })
 }

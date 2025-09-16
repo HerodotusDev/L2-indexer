@@ -29,3 +29,4 @@ ethers-core = "2.0.10"
 ethers-contract = "2.0.10"
 ethers-providers = "2.0.10"
 reqwest = { version = "0.12.4", features = ["json"] }
+chrono = { version = "0.4", features = ["serde"] }
