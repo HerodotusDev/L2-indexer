@@ -1,5 +1,5 @@
 # Multi-stage build for monitor-events
-FROM rust:1.75-slim as builder
+FROM rust:1.75-slim AS builder
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -14,6 +14,7 @@ WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 COPY crates/common ./crates/common
 COPY crates/monitor_events ./crates/monitor_events
+COPY crates/l2-micro-service ./crates/l2-micro-service
 
 # Build the application
 RUN cargo build --release --bin monitor-events
