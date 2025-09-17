@@ -4,6 +4,7 @@ version = "0.2.1"
 edition = "2021"
 
 [workspace]
+resolver = "2"
 members = ["crates/monitor_events", "crates/l2-micro-service", "crates/common"]
 
 [workspace.dependencies]
