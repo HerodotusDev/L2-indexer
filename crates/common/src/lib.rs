@@ -1,5 +1,5 @@
-use config::{Config, File, FileFormat};
 use serde::Deserialize;
+use serde_json;
 use std::str::FromStr;
 
 /// A chain name
@@ -118,25 +118,34 @@ pub struct NetworkConfig {
     pub trusted_proposer_address: Option<String>,
 }
 
-/// A builder that gets config from JSON and returns Config.
+/// A builder that gets config from embedded JSON and returns NetworkConfig.
 /// Parameters:
-/// * network_config: The name of the network want to get from JSON
+/// * chain_type: The chain type (mainnet, sepolia, goerli)
+/// * chain_name: The chain name (arbitrum, optimism, base, etc.)
 /// Returns:
-/// * Networks struct that contains all the network config data
+/// * NetworkConfig struct that contains all the network config data
 pub fn get_network_config(chain_type: ChainType, chain_name: ChainName) -> NetworkConfig {
     let network = Network {
         chain_name,
         chain_type,
     };
-    let config_name = format!(
-        "crates/monitor_events/networks/{}.json",
-        network.to_string().to_lowercase()
-    );
-    let config = Config::builder()
-        .add_source(File::new(&config_name, FileFormat::Json))
-        .build()
-        .unwrap();
-    config.try_deserialize().unwrap()
+    let config_json = match network.to_string().to_lowercase().as_str() {
+        "arbitrum_mainnet" => include_str!("../../monitor_events/networks/arbitrum_mainnet.json"),
+        "arbitrum_sepolia" => include_str!("../../monitor_events/networks/arbitrum_sepolia.json"),
+        "ape_chain_mainnet" => include_str!("../../monitor_events/networks/ape_chain_mainnet.json"),
+        "ape_chain_sepolia" => include_str!("../../monitor_events/networks/ape_chain_sepolia.json"),
+        "base_mainnet" => include_str!("../../monitor_events/networks/base_mainnet.json"),
+        "base_sepolia" => include_str!("../../monitor_events/networks/base_sepolia.json"),
+        "optimism_mainnet" => include_str!("../../monitor_events/networks/optimism_mainnet.json"),
+        "optimism_sepolia" => include_str!("../../monitor_events/networks/optimism_sepolia.json"),
+        "world_chain_mainnet" => include_str!("../../monitor_events/networks/world_chain_mainnet.json"),
+        "world_chain_sepolia" => include_str!("../../monitor_events/networks/world_chain_sepolia.json"),
+        "zora_mainnet" => include_str!("../../monitor_events/networks/zora_mainnet.json"),
+        "zora_sepolia" => include_str!("../../monitor_events/networks/zora_sepolia.json"),
+        _ => panic!("Unsupported network: {}", network.to_string()),
+    };
+    
+    serde_json::from_str(config_json).unwrap()
 }
 
 pub fn create_network_from_strings(
