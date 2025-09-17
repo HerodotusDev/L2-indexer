@@ -129,7 +129,7 @@ pub fn get_network_config(chain_type: ChainType, chain_name: ChainName) -> Netwo
         chain_type,
     };
     let config_name = format!(
-        "crates/monitor_events/networks/{}",
+        "crates/monitor_events/networks/{}.json",
         network.to_string().to_lowercase()
     );
     let config = Config::builder()
