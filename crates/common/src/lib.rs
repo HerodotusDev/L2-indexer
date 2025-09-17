@@ -138,13 +138,17 @@ pub fn get_network_config(chain_type: ChainType, chain_name: ChainName) -> Netwo
         "base_sepolia" => include_str!("../../monitor_events/networks/base_sepolia.json"),
         "optimism_mainnet" => include_str!("../../monitor_events/networks/optimism_mainnet.json"),
         "optimism_sepolia" => include_str!("../../monitor_events/networks/optimism_sepolia.json"),
-        "world_chain_mainnet" => include_str!("../../monitor_events/networks/world_chain_mainnet.json"),
-        "world_chain_sepolia" => include_str!("../../monitor_events/networks/world_chain_sepolia.json"),
+        "world_chain_mainnet" => {
+            include_str!("../../monitor_events/networks/world_chain_mainnet.json")
+        }
+        "world_chain_sepolia" => {
+            include_str!("../../monitor_events/networks/world_chain_sepolia.json")
+        }
         "zora_mainnet" => include_str!("../../monitor_events/networks/zora_mainnet.json"),
         "zora_sepolia" => include_str!("../../monitor_events/networks/zora_sepolia.json"),
         _ => panic!("Unsupported network: {}", network.to_string()),
     };
-    
+
     serde_json::from_str(config_json).unwrap()
 }
 
