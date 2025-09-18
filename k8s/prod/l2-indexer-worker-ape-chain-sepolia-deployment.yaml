@@ -1,25 +1,25 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: l2-indexer-worker-ape-chain-mainnet
+  name: l2-indexer-worker-ape-chain-sepolia
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: l2-indexer-worker-ape-chain-mainnet
+      app: l2-indexer-worker-ape-chain-sepolia
   template:
     metadata:
       labels:
-        app: l2-indexer-worker-ape-chain-mainnet
+        app: l2-indexer-worker-ape-chain-sepolia
     spec:
       imagePullSecrets:
         - name: dockerhub-secret           
       containers:
-        - name: l2-indexer-worker-ape-chain-mainnet
+        - name: l2-indexer-worker-ape-chain-sepolia
           image: <IMAGE>
           envFrom:
             - secretRef:
-                name: l2-indexer-worker-ape-chain-mainnet-secret
+                name: l2-indexer-worker-ape-chain-sepolia-secret
           resources:
             requests:
               cpu: '2'
@@ -32,10 +32,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: l2-indexer-worker-ape-chain-mainnet-service
+  name: l2-indexer-worker-ape-chain-sepolia-service
 spec:
   selector:
-    app: l2-indexer-worker-ape-chain-mainnet
+    app: l2-indexer-worker-ape-chain-sepolia
   ports:
     - port: 8080
       targetPort: 8080
