@@ -46,7 +46,7 @@ RUN chown -R appuser:appuser /app
 USER appuser
 
 # Expose port
-EXPOSE 8001
+EXPOSE 8000
 
 # Run the application
 CMD ["./l2-micro-service"]
