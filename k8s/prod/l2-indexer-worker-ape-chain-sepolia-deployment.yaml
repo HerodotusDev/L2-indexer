@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: l2-indexer-worker-ape-chain-mainnet
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: l2-indexer-worker-ape-chain-mainnet
+  template:
+    metadata:
+      labels:
+        app: l2-indexer-worker-ape-chain-mainnet
+    spec:
+      imagePullSecrets:
+        - name: dockerhub-secret           
+      containers:
+        - name: l2-indexer-worker-ape-chain-mainnet
+          image: <IMAGE>
+          envFrom:
+            - secretRef:
+                name: l2-indexer-worker-ape-chain-mainnet-secret
+          resources:
+            requests:
+              cpu: '2'
+              memory: '4G'
+            limits:
+              cpu: '2'
+              memory: '8G'
+---    
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: l2-indexer-worker-ape-chain-mainnet-service
+spec:
+  selector:
+    app: l2-indexer-worker-ape-chain-mainnet
+  ports:
+    - port: 8080
+      targetPort: 8080
