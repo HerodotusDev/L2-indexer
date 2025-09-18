@@ -34,6 +34,9 @@ RUN useradd -r -s /bin/false appuser
 WORKDIR /app
 
 # Copy the binary from builder stage
+
+# Copy Rocket.toml config
+COPY crates/l2-micro-service/Rocket.toml /app/Rocket.toml
 COPY --from=builder /app/target/release/l2-micro-service /app/l2-micro-service
 
 # Change ownership to app user
@@ -43,7 +46,7 @@ RUN chown -R appuser:appuser /app
 USER appuser
 
 # Expose port
-EXPOSE 8000
+EXPOSE 8001
 
 # Run the application
 CMD ["./l2-micro-service"]
