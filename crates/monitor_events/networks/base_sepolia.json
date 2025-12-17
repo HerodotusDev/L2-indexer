@@ -4,5 +4,10 @@
   "block_delay": 20,
   "poll_period_sec": 10800,
   "batch_size": 50000,
-  "l1_contract_deployment_block": 4370901
+  "l1_contract_deployment_block": 4370901,
+  "l1_dispute_game_contract_deployment_block": 6189927,
+  "transition_to_dispute_game_system_block": 6362901,
+  "transition_to_dispute_game_system_l2_block": 12992280,
+  "dispute_game_factory_l1_contract": "0xd6E6dBf4F7EA0ac412fD8b65ED297e64BB7a06E1",
+  "trusted_proposer_address": "0x037637067c1DbE6d2430616d8f54Cb774Daa5999"
 }
