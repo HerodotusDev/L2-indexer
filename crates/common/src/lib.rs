@@ -1,6 +1,24 @@
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use serde_json;
 use std::str::FromStr;
+
+/// Custom deserializer that lowercases address strings
+fn deserialize_address_lowercase<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    Ok(s.to_lowercase())
+}
+
+/// Custom deserializer that lowercases optional address strings
+fn deserialize_optional_address_lowercase<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let opt = Option::<String>::deserialize(deserializer)?;
+    Ok(opt.map(|s| s.to_lowercase()))
+}
 
 /// A chain name
 #[derive(Debug, Clone, PartialEq, Copy)]
@@ -106,15 +124,18 @@ impl FromStr for Network {
 #[derive(Debug, Deserialize)]
 pub struct NetworkConfig {
     pub name: String,
+    #[serde(deserialize_with = "deserialize_address_lowercase")]
     pub l1_contract: String,
     pub l1_contract_deployment_block: u64,
     pub block_delay: u64,
     pub poll_period_sec: u64,
     pub batch_size: Option<u64>,
+    #[serde(deserialize_with = "deserialize_optional_address_lowercase")]
     pub dispute_game_factory_l1_contract: Option<String>,
     pub l1_dispute_game_contract_deployment_block: Option<u64>,
     pub transition_to_dispute_game_system_block: Option<u64>,
     pub transition_to_dispute_game_system_l2_block: Option<u64>,
+    #[serde(deserialize_with = "deserialize_optional_address_lowercase")]
     pub trusted_proposer_address: Option<String>,
 }
 
