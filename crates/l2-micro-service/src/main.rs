@@ -206,9 +206,10 @@ async fn handle_get_highest_l2_block(
     let network_config = get_network_config(network.chain_type, network.chain_name);
 
     // Check if this network uses the dispute game system
-    let uses_fdg =
-        network.to_string() == "optimism_mainnet" || network.to_string() == "optimism_sepolia"
-        || network.to_string() == "base_mainnet" || network.to_string() == "base_sepolia";
+    let uses_fdg = network.to_string() == "optimism_mainnet"
+        || network.to_string() == "optimism_sepolia"
+        || network.to_string() == "base_mainnet"
+        || network.to_string() == "base_sepolia";
 
     let mut max_block_number: Option<i32> = None;
 

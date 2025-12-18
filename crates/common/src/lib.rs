@@ -12,7 +12,9 @@ where
 }
 
 /// Custom deserializer that lowercases optional address strings
-fn deserialize_optional_address_lowercase<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+fn deserialize_optional_address_lowercase<'de, D>(
+    deserializer: D,
+) -> Result<Option<String>, D::Error>
 where
     D: Deserializer<'de>,
 {
