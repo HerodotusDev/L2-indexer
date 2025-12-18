@@ -207,7 +207,8 @@ async fn handle_get_highest_l2_block(
 
     // Check if this network uses the dispute game system
     let uses_fdg =
-        network.to_string() == "optimism_mainnet" || network.to_string() == "optimism_sepolia";
+        network.to_string() == "optimism_mainnet" || network.to_string() == "optimism_sepolia"
+        || network.to_string() == "base_mainnet" || network.to_string() == "base_sepolia";
 
     let mut max_block_number: Option<i32> = None;
 
@@ -659,7 +660,9 @@ async fn get_output_root(
                 .transition_to_dispute_game_system_l2_block
                 .unwrap();
             let use_dispute_game_logic = (network_str == "optimism_mainnet"
-                || network_str == "optimism_sepolia")
+                || network_str == "optimism_sepolia"
+                || network_str == "base_mainnet"
+                || network_str == "base_sepolia")
                 && u64::try_from(params.l2_block).unwrap() > transition_block;
 
             if use_dispute_game_logic {

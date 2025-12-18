@@ -87,10 +87,10 @@ async fn main() -> Result<()> {
         |max_blocknumber| (max_blocknumber + 1).into(),
     );
 
-    // Enable FDG indexing stream for Optimism Mainnet so we can backfill
+    // Enable FDG indexing stream for Optimism and Base Mainnet so we can backfill
     // any games that may have been created before the transition block,
     // while still retaining OutputProposed indexing before the transition.
-    let fdg_enabled = chain_name == ChainName::Optimism
+    let fdg_enabled = (chain_name == ChainName::Optimism || chain_name == ChainName::Base)
         && (chain_type == ChainType::Mainnet || chain_type == ChainType::Sepolia);
 
     // Always start from the 0th game index by default
