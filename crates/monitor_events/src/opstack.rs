@@ -1,4 +1,4 @@
-use common::{get_network_config, ChainType, Network};
+use common::{get_network_config, ChainName, ChainType, Network};
 
 use crate::fetcher::Fetcher;
 use ethers::prelude::*;
@@ -465,9 +465,39 @@ pub async fn handle_opstack_fdg_events(
     // let l2_block_hash: Bytes =
     //     Bytes::from_str(&optimism_output.block_ref.hash).expect("Invalid block hash hex");
     //
-    let maybe_out = l2_rpc_fetcher
-        .fetch_optimism_output_at_block(&l2_block_number_hex)
-        .await?;
+
+    let mut maybe_out = None;
+
+    if network.chain_name == ChainName::Base
+        && network.chain_type == ChainType::Sepolia
+        && l2_block_number_u64 < 25000000
+    {
+    } else {
+        // Until we find RPC that supports older blocks
+        maybe_out = match l2_rpc_fetcher
+            .fetch_optimism_output_at_block(&l2_block_number_hex)
+            .await
+        {
+            Ok(val) => val,
+
+            Err(e) => {
+                eprintln!(
+                    "fetch_optimism_output_at_block({}) failed: {:?}",
+                    l2_block_number_hex, e
+                );
+
+                // Instead of failing completely, continue with None values for L2 data
+
+                // This allows the dispute game to be indexed even if L2 data is unavailable
+
+                None
+            }
+        };
+    }
+
+    // let maybe_out = l2_rpc_fetcher
+    //     .fetch_optimism_output_at_block(&l2_block_number_hex)
+    //     .await?;
 
     let (l2_state_root, l2_withdrawal_storage_root, l2_block_hash) = match maybe_out {
         Some(out) => (
