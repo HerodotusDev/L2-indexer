@@ -131,13 +131,17 @@ pub struct NetworkConfig {
     pub l1_contract_deployment_block: u64,
     pub block_delay: u64,
     pub poll_period_sec: u64,
+    #[serde(default)]
     pub batch_size: Option<u64>,
-    #[serde(deserialize_with = "deserialize_optional_address_lowercase")]
+    #[serde(default, deserialize_with = "deserialize_optional_address_lowercase")]
     pub dispute_game_factory_l1_contract: Option<String>,
+    #[serde(default)]
     pub l1_dispute_game_contract_deployment_block: Option<u64>,
+    #[serde(default)]
     pub transition_to_dispute_game_system_block: Option<u64>,
+    #[serde(default)]
     pub transition_to_dispute_game_system_l2_block: Option<u64>,
-    #[serde(deserialize_with = "deserialize_optional_address_lowercase")]
+    #[serde(default, deserialize_with = "deserialize_optional_address_lowercase")]
     pub trusted_proposer_address: Option<String>,
 }
 
