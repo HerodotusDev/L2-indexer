@@ -22,10 +22,10 @@ spec:
                 name: l2-indexer-worker-optimism-sepolia-secret
           resources:
             requests:
-              cpu: '1'
+              cpu: '0.2'
               memory: '128Mi'
             limits:
-              cpu: '1'
+              cpu: '0.2'
               memory: '128Mi'
 ---    
 ---

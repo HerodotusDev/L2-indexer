@@ -22,10 +22,10 @@ spec:
                 name: l2-indexer-micro-service-secret
           resources:
             requests:
-              cpu: '2'
-              memory: '256Mi'
+              cpu: '0.2'
+              memory: '128Mi'
             limits:
-              cpu: '2'
+              cpu: '0.2'
               memory: '256Mi'
           # livenessProbe:
           #   httpGet:
