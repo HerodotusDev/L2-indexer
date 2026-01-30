@@ -4,6 +4,5 @@ app_names:
   - l2-indexer-worker-optimism-sepolia
   - l2-indexer-worker-base-mainnet
   - l2-indexer-worker-base-sepolia
-  - l2-indexer-worker-world-chain-sepolia
 version_file: ./Cargo.toml
 namespace: l2-indexer
